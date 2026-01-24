@@ -1,0 +1,28 @@
+2025-01-20 16:36:52,063 - root - INFO - [main.py:75] - Dashboard application starting...
+2025-01-20 16:36:52,250 - Weather - INFO - [weather_component.py:49] - API Key found: No
+2025-01-20 16:36:52,251 - Weather - ERROR - [weather_component.py:53] - No API key configured for weather component
+2025-01-20 16:37:24,202 - root - INFO - [main.py:75] - Dashboard application starting...
+2025-01-20 16:37:24,380 - Weather - INFO - [weather_component.py:49] - API Key found: No
+2025-01-20 16:37:24,380 - Weather - ERROR - [weather_component.py:53] - No API key configured for weather component
+2025-01-20 16:38:27,075 - root - INFO - [main.py:75] - Dashboard application starting...
+2025-01-20 16:38:27,253 - Weather - INFO - [weather_component.py:49] - API Key found: No
+2025-01-20 16:38:27,253 - Weather - ERROR - [weather_component.py:53] - No API key configured for weather component
+2025-01-20 16:46:57,073 - root - INFO - [main.py:76] - Dashboard application starting...
+2025-01-20 16:46:57,243 - Weather - INFO - [weather_component.py:49] - API Key found: No
+2025-01-20 16:46:57,243 - Weather - ERROR - [weather_component.py:53] - No API key configured for weather component
+2025-01-20 18:51:31,516 - root - INFO - [main.py:75] - Dashboard application starting...
+2025-01-20 18:51:31,631 - root - INFO - [config.py:55] - Config file change detected - reloading configuration
+2025-01-20 18:51:31,632 - root - INFO - [config.py:95] - === Configuration Changes Detected ===
+2025-01-20 18:51:31,632 - root - INFO - [config.py:97] - === End of Configuration Changes ===
+2025-01-20 18:51:31,632 - root - INFO - [main.py:168] - Handling config change
+2025-01-20 18:51:31,693 - root - INFO - [plugin_manager.py:36] - Component 'Hello World' disabled (enable: False)
+2025-01-20 18:51:31,697 - root - INFO - [plugin_manager.py:36] - Component 'Weather' disabled (enable: False)
+2025-01-20 18:51:31,698 - root - INFO - [plugin_manager.py:36] - Component 'Hourly Weather' disabled (enable: False)
+2025-01-20 18:51:31,698 - root - INFO - [plugin_manager.py:36] - Component 'Weekly Weather' disabled (enable: False)
+2025-01-20 18:51:31,924 - root - INFO - [main.py:189] - Updating components from config
+2025-01-20 18:51:31,924 - root - INFO - [main.py:217] - Component disabled: Hello World
+2025-01-20 18:51:31,924 - root - INFO - [main.py:207] - Updating existing component: System Logs
+2025-01-20 18:51:31,924 - System Logs - INFO - [component_base.py:48] - Updated config for System Logs
+2025-01-20 18:51:31,924 - root - INFO - [main.py:217] - Component disabled: Weather
+2025-01-20 18:51:31,924 - root - INFO - [main.py:217] - Component disabled: Hourly Weather
+2025-01-20 18:51:31,924 - root - INFO - [main.py:217] - Component disabled: Weekly Weather

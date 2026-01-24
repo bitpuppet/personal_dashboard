@@ -1,0 +1,125 @@
+window:
+  fullscreen: false
+  borderless: true
+  width: 800
+  height: 600
+  auto_size: false
+  margin_percent: 5
+
+layout:
+  columns: 2
+  padding: 10
+
+taskbar:
+  show_volume_control: true  # Set to true to show volume control in taskbar 
+
+components:
+  "Hello World": {}  # No specific config needed for hello world
+
+  "Weather":
+    api_key: "86917a20a6f7ed93fbe462d6395c1778"  # Put your actual API key here
+    city: "Murphy, TX"
+    lat: 33.0185  # Murphy, TX latitude
+    lon: -96.6135 # Murphy, TX longitude
+    enable: false
+    update_interval: 600  # minutes
+    headline: "7-Day Weather Outlook (OpenWeatherMap)"
+    row: 1  # Second row
+    column: 0  # First column
+
+  "System Logs":
+    enable: true
+    level: "INFO"  # Can be DEBUG, INFO, WARNING, or ERROR
+    # System Logs always appears at the bottom, row/column ignored
+
+  "Hourly Weather":
+    enable: false
+    headline: "Today's Weather Forecast"
+    backend: "nws"  # Use NWS backend
+    lat: 33.0185
+    lon: -96.6135
+    city: "Murphy, TX"
+    update_interval: 3600
+    row: 1  # Second row
+    column: 1  # Second column
+
+  "Weekly Weather":
+    enable: true
+    headline: "7-Day Weather Outlook"
+    backend: "nws"  # Use NWS backend
+    lat: 33.0185
+    lon: -96.6135
+    city: "Murphy, TX"
+    update_interval: 3600
+    row: 1  # Second row
+    column: 0  # First column
+
+  "Prayer Times":
+    enable: true
+    headline: "Daily Prayer Times"
+    backend: "aladhan"  # Prayer time calculation backend
+    calculation_method: 2  # ISNA method
+    lat: 33.0185  # Murphy, TX latitude
+    lon: -96.6135 # Murphy, TX longitude
+    city: "Murphy, TX"
+    update_interval: 3600  # Update hourly
+    show_test_buttons: false  # Make test column configurable
+    row: 0  # First row
+    column: 1  # Second column
+
+    adhan:
+      auto_download: true
+      default_url: "https://www.islamcan.com/audio/adhan/azan3.mp3"
+      volume: 0.7
+      save_volume: true
+      volumes_file: "~/.personal_dashboard/adhan_volume.json"
+      prayer_specific:
+        Fajr: 
+          url: "https://www.islamcan.com/audio/adhan/azan3.mp3"
+        Dhuhr:
+          url: "https://www.islamcan.com/audio/adhan/azan3.mp3"
+        Asr:
+          url: "https://www.islamcan.com/audio/adhan/azan3.mp3"
+        Maghrib:
+          url: "https://www.islamcan.com/audio/adhan/azan3.mp3"
+        Isha:
+          url: "https://www.islamcan.com/audio/adhan/azan3.mp3"
+
+  "Friday Prayer":
+    enable: true
+    headline: "Friday Prayer Times"
+    update_interval: 3600  # Update hourly
+    row: 0  # First row
+    column: 0  # First column
+    max_width: 400  # Maximum width in pixels to keep it compact
+    daily_update:
+      enabled: true
+      time: "10:13"  # 24-hour format
+    mosques:
+      # - type: "sachse_islamic_center"
+      #   name: "Sachse Islamic Center"
+      #   url: "https://sachsemasjid.org"
+      #   timezone: "America/Chicago"
+      - type: "east_plano"
+        name: "East Plano Islamic Center"
+        url: "https://epicmasjid.org"
+        timezone: "America/Chicago"
+
+  "Task Manager":
+    enable: false
+    headline: "Scheduled Tasks"
+    update_interval: 1000  # Update every second
+    row: 1  # Second row
+    column: 1  # Second column
+
+update_interval: 1000
+
+logging:
+  level: "INFO"
+  file: "~/.personal_dashboard/dashboard.log"
+
+taskbar:
+  show_volume_control: true  # Set to true to show volume control in taskbar 
+
+cache:
+  directory: "~/.personal_dashboard/cache"  # Base cache directory 
