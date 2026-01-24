@@ -1,0 +1,61 @@
+2026-01-24 16:22:29,747 - root - INFO - [app.py:77] - Dashboard application starting...
+2026-01-24 16:22:29,758 - root - INFO - [config.py:74] - Config file change detected - reloading configuration
+2026-01-24 16:22:29,862 - root - INFO - [config.py:123] - === Configuration Changes Detected ===
+2026-01-24 16:22:29,862 - root - INFO - [config.py:125] - === End of Configuration Changes ===
+2026-01-24 16:22:29,900 - dashboard.core.plugin_manager - INFO - [plugin_manager.py:25] - Registered components from plugin: friday_prayer
+2026-01-24 16:22:29,900 - dashboard.core.plugin_manager - INFO - [plugin_manager.py:25] - Registered components from plugin: hello_world
+2026-01-24 16:22:29,901 - dashboard.core.plugin_manager - INFO - [plugin_manager.py:25] - Registered components from plugin: logger
+2026-01-24 16:22:29,905 - dashboard.core.plugin_manager - ERROR - [plugin_manager.py:27] - Error loading plugin prayer: No module named 'vlc'
+2026-01-24 16:22:29,907 - dashboard.core.plugin_manager - INFO - [plugin_manager.py:25] - Registered components from plugin: task_manager
+2026-01-24 16:22:30,170 - dashboard.core.plugin_manager - INFO - [plugin_manager.py:25] - Registered components from plugin: weather
+2026-01-24 16:22:30,357 - dashboard.core.plugin_manager - INFO - [plugin_manager.py:25] - Registered components from plugin: friday_prayer
+2026-01-24 16:22:30,357 - dashboard.core.plugin_manager - INFO - [plugin_manager.py:25] - Registered components from plugin: hello_world
+2026-01-24 16:22:30,357 - dashboard.core.plugin_manager - INFO - [plugin_manager.py:25] - Registered components from plugin: logger
+2026-01-24 16:22:30,361 - dashboard.core.plugin_manager - ERROR - [plugin_manager.py:27] - Error loading plugin prayer: No module named 'vlc'
+2026-01-24 16:22:30,362 - dashboard.core.plugin_manager - INFO - [plugin_manager.py:25] - Registered components from plugin: task_manager
+2026-01-24 16:22:30,362 - dashboard.core.plugin_manager - INFO - [plugin_manager.py:25] - Registered components from plugin: weather
+2026-01-24 16:22:30,362 - dashboard.core.plugin_manager - INFO - [plugin_manager.py:42] - Component 'Friday Prayer' disabled (enable: False)
+2026-01-24 16:22:30,362 - dashboard.core.plugin_manager - INFO - [plugin_manager.py:42] - Component 'Hello World' disabled (enable: False)
+2026-01-24 16:22:30,381 - dashboard.core.plugin_manager - INFO - [plugin_manager.py:42] - Component 'Task Manager' disabled (enable: False)
+2026-01-24 16:22:30,381 - dashboard.core.plugin_manager - INFO - [plugin_manager.py:42] - Component 'Weather' disabled (enable: False)
+2026-01-24 16:22:30,381 - dashboard.core.plugin_manager - INFO - [plugin_manager.py:42] - Component 'Hourly Weather' disabled (enable: False)
+2026-01-24 16:22:30,381 - dashboard.core.plugin_manager - INFO - [plugin_manager.py:42] - Component 'Weekly Weather' disabled (enable: False)
+2026-01-24 16:22:30,478 - DashboardApp - INFO - [app.py:170] - Handling config change
+2026-01-24 16:23:16,541 - root - INFO - [app.py:77] - Dashboard application starting...
+2026-01-24 16:23:16,598 - dashboard.core.plugin_manager - INFO - [plugin_manager.py:25] - Registered components from plugin: friday_prayer
+2026-01-24 16:23:16,599 - dashboard.core.plugin_manager - INFO - [plugin_manager.py:25] - Registered components from plugin: hello_world
+2026-01-24 16:23:16,600 - dashboard.core.plugin_manager - INFO - [plugin_manager.py:25] - Registered components from plugin: logger
+2026-01-24 16:23:16,604 - dashboard.core.plugin_manager - ERROR - [plugin_manager.py:27] - Error loading plugin prayer: No module named 'vlc'
+2026-01-24 16:23:16,606 - dashboard.core.plugin_manager - INFO - [plugin_manager.py:25] - Registered components from plugin: task_manager
+2026-01-24 16:23:16,622 - dashboard.core.plugin_manager - INFO - [plugin_manager.py:25] - Registered components from plugin: weather
+2026-01-24 16:23:16,799 - dashboard.core.plugin_manager - INFO - [plugin_manager.py:25] - Registered components from plugin: friday_prayer
+2026-01-24 16:23:16,799 - dashboard.core.plugin_manager - INFO - [plugin_manager.py:25] - Registered components from plugin: hello_world
+2026-01-24 16:23:16,799 - dashboard.core.plugin_manager - INFO - [plugin_manager.py:25] - Registered components from plugin: logger
+2026-01-24 16:23:16,803 - dashboard.core.plugin_manager - ERROR - [plugin_manager.py:27] - Error loading plugin prayer: No module named 'vlc'
+2026-01-24 16:23:16,803 - dashboard.core.plugin_manager - INFO - [plugin_manager.py:25] - Registered components from plugin: task_manager
+2026-01-24 16:23:16,803 - dashboard.core.plugin_manager - INFO - [plugin_manager.py:25] - Registered components from plugin: weather
+2026-01-24 16:23:16,803 - dashboard.core.plugin_manager - INFO - [plugin_manager.py:42] - Component 'Friday Prayer' disabled (enable: False)
+2026-01-24 16:23:16,803 - dashboard.core.plugin_manager - INFO - [plugin_manager.py:42] - Component 'Hello World' disabled (enable: False)
+2026-01-24 16:23:16,824 - dashboard.core.plugin_manager - INFO - [plugin_manager.py:42] - Component 'Task Manager' disabled (enable: False)
+2026-01-24 16:23:16,824 - dashboard.core.plugin_manager - INFO - [plugin_manager.py:42] - Component 'Weather' disabled (enable: False)
+2026-01-24 16:23:16,824 - dashboard.core.plugin_manager - INFO - [plugin_manager.py:42] - Component 'Hourly Weather' disabled (enable: False)
+2026-01-24 16:23:16,824 - dashboard.core.plugin_manager - INFO - [plugin_manager.py:42] - Component 'Weekly Weather' disabled (enable: False)
+2026-01-24 16:23:23,720 - root - INFO - [app.py:77] - Dashboard application starting...
+2026-01-24 16:23:23,777 - dashboard.core.plugin_manager - INFO - [plugin_manager.py:25] - Registered components from plugin: friday_prayer
+2026-01-24 16:23:23,777 - dashboard.core.plugin_manager - INFO - [plugin_manager.py:25] - Registered components from plugin: hello_world
+2026-01-24 16:23:23,778 - dashboard.core.plugin_manager - INFO - [plugin_manager.py:25] - Registered components from plugin: logger
+2026-01-24 16:23:23,782 - dashboard.core.plugin_manager - ERROR - [plugin_manager.py:27] - Error loading plugin prayer: No module named 'vlc'
+2026-01-24 16:23:23,783 - dashboard.core.plugin_manager - INFO - [plugin_manager.py:25] - Registered components from plugin: task_manager
+2026-01-24 16:23:23,799 - dashboard.core.plugin_manager - INFO - [plugin_manager.py:25] - Registered components from plugin: weather
+2026-01-24 16:23:23,973 - dashboard.core.plugin_manager - INFO - [plugin_manager.py:25] - Registered components from plugin: friday_prayer
+2026-01-24 16:23:23,973 - dashboard.core.plugin_manager - INFO - [plugin_manager.py:25] - Registered components from plugin: hello_world
+2026-01-24 16:23:23,973 - dashboard.core.plugin_manager - INFO - [plugin_manager.py:25] - Registered components from plugin: logger
+2026-01-24 16:23:23,977 - dashboard.core.plugin_manager - ERROR - [plugin_manager.py:27] - Error loading plugin prayer: No module named 'vlc'
+2026-01-24 16:23:23,977 - dashboard.core.plugin_manager - INFO - [plugin_manager.py:25] - Registered components from plugin: task_manager
+2026-01-24 16:23:23,977 - dashboard.core.plugin_manager - INFO - [plugin_manager.py:25] - Registered components from plugin: weather
+2026-01-24 16:23:23,977 - dashboard.core.plugin_manager - INFO - [plugin_manager.py:42] - Component 'Friday Prayer' disabled (enable: False)
+2026-01-24 16:23:23,977 - dashboard.core.plugin_manager - INFO - [plugin_manager.py:42] - Component 'Hello World' disabled (enable: False)
+2026-01-24 16:23:23,999 - dashboard.core.plugin_manager - INFO - [plugin_manager.py:42] - Component 'Task Manager' disabled (enable: False)
+2026-01-24 16:23:23,999 - dashboard.core.plugin_manager - INFO - [plugin_manager.py:42] - Component 'Weather' disabled (enable: False)
+2026-01-24 16:23:23,999 - dashboard.core.plugin_manager - INFO - [plugin_manager.py:42] - Component 'Hourly Weather' disabled (enable: False)
+2026-01-24 16:23:23,999 - dashboard.core.plugin_manager - INFO - [plugin_manager.py:42] - Component 'Weekly Weather' disabled (enable: False)

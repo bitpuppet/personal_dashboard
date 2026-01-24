@@ -1,0 +1,18 @@
+components:
+  System Logs:
+    enable: true
+    level: INFO
+layout:
+  columns: 2
+  padding: 10
+logging:
+  file: /Users/enam/IdeaProjects/mm/dashboard.log
+  level: INFO
+update_interval: 1000
+window:
+  auto_size: true
+  borderless: false
+  fullscreen: false
+  height: 600
+  margin_percent: 5
+  width: 800
