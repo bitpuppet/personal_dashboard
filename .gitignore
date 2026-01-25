@@ -57,6 +57,7 @@ dashboard.log
 .env
 .env.local
 .env.*.local
+.cache/*
 
 # Config files with sensitive data (optional - uncomment if needed)
 # config.yaml
