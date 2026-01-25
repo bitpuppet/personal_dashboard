@@ -249,4 +249,4 @@ class LayoutManager:
                 fill=tk.BOTH,
                 expand=True,
                 pady=(0, self.padding)
-            ) 
+            )

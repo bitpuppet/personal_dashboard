@@ -3,6 +3,7 @@ import tkinter.messagebox as messagebox
 from typing import Dict, Any, List, Optional
 import logging
 import sys
+from pathlib import Path
 from .task_manager import TaskManager
 from .component_base import DashboardComponent
 from .volume_control import VolumeControl
@@ -10,6 +11,7 @@ from .plugin_manager import PluginManager
 from .config import Config
 from .layout_manager import LayoutManager
 from .context import DashboardContext
+from .hot_reload import HotReloadManager
 
 class DashboardApp:
     def __init__(self, config_path: Optional[str] = None):
@@ -70,6 +72,14 @@ class DashboardApp:
         # Load components
         self.components = []
         self.initialize_components()
+        
+        # Setup hot reload (watches config and code files)
+        self.hot_reload_manager = HotReloadManager(
+            app=self,
+            config_dir=self.config.config_dir,
+            code_dirs=[Path(__file__).parent.parent],  # Watch dashboard directory
+            enabled=True
+        )
 
     def _setup_logging(self):
         """Configure logging to write to both file and stdout"""
@@ -313,4 +323,6 @@ class DashboardApp:
                 self.root.mainloop()
         finally:
             self.task_manager.stop()
+            if hasattr(self, 'hot_reload_manager'):
+                self.hot_reload_manager.stop()
             self.config.cleanup() 

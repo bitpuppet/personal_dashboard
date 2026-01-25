@@ -242,4 +242,4 @@ class DashboardComponent(ABC):
                 self.update()  # Fallback to regular update
                 
         except Exception as e:
-            self.logger.error(f"Error handling config update for {self.name}: {e}", exc_info=True) 
+            self.logger.error(f"Error handling config update for {self.name}: {e}", exc_info=True)
