@@ -1,0 +1,20 @@
+[Unit]
+Description=Personal Dashboard Application
+After=network.target graphical.target
+Wants=network.target
+
+[Service]
+Type=simple
+User=pi
+Group=pi
+WorkingDirectory=/home/enam/personal_dashboard
+Environment="DISPLAY=:0"
+Environment="XAUTHORITY=/home/enam/.Xauthority"
+ExecStart=/home/enam/personal_dashboard/start_dashboard.sh
+Restart=always
+RestartSec=10
+StandardOutput=append:/home/enam/.personal_dashboard/logs/service.out.log
+StandardError=append:/home/enam/.personal_dashboard/logs/service.err.log
+
+[Install]
+WantedBy=graphical.target
