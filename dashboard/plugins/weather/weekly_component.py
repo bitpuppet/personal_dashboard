@@ -245,7 +245,7 @@ class WeeklyWeatherComponent(DashboardComponent):
             weather_data = self.backend.get_weather(force_fetch)
             
             if weather_data:
-                self.logger.info(f"Received weather data: {weather_data}")
+                self.logger.debug(f"Received weather data: {weather_data}")
                 self.cached_data = weather_data
                 self._latest_result = weather_data  # Add this line
                 self.frame.after(0, self.update)

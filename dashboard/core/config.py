@@ -8,6 +8,7 @@ from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler, FileModifiedEvent
 import time
 import tkinter as tk
+import re
 
 class ConfigChangeHandler(FileSystemEventHandler):
     def __init__(self, config):
@@ -49,6 +50,9 @@ class Config:
         logging.debug(f"Using config file: {self.config_file}")
         
         self.component_configs: Dict[str, Dict[str, Any]] = {}
+        
+        # Load environment variables from .env file
+        self._load_env_file()
         
         self._ensure_config_exists()
         self._load_config()
@@ -164,6 +168,69 @@ class Config:
             }
             self.config_file.write_text(yaml.dump(default_config))
     
+    def _load_env_file(self) -> None:
+        """Load environment variables from .env file"""
+        # Look for .env file in config directory or project root
+        env_files = [
+            self.config_dir / ".env",
+            self.config_dir.parent / ".env",
+            Path.cwd() / ".env"
+        ]
+        
+        env_file = None
+        for path in env_files:
+            if path.exists():
+                env_file = path
+                break
+        
+        if not env_file:
+            logging.debug("No .env file found, skipping environment variable loading")
+            return
+        
+        logging.info(f"Loading environment variables from: {env_file}")
+        try:
+            with open(env_file, 'r') as f:
+                for line in f:
+                    line = line.strip()
+                    # Skip empty lines and comments
+                    if not line or line.startswith('#'):
+                        continue
+                    
+                    # Parse KEY=VALUE format
+                    match = re.match(r'^([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)$', line)
+                    if match:
+                        key, value = match.groups()
+                        # Remove quotes if present
+                        value = value.strip('"').strip("'")
+                        # Set environment variable if not already set
+                        if key not in os.environ:
+                            os.environ[key] = value
+                            logging.debug(f"Loaded env var: {key}")
+        except Exception as e:
+            logging.warning(f"Error loading .env file: {e}")
+    
+    def _substitute_env_vars(self, data: Any) -> Any:
+        """Recursively substitute environment variables in config data"""
+        if isinstance(data, dict):
+            result = {}
+            for key, value in data.items():
+                result[key] = self._substitute_env_vars(value)
+            return result
+        elif isinstance(data, list):
+            return [self._substitute_env_vars(item) for item in data]
+        elif isinstance(data, str):
+            # Check if string is an environment variable reference
+            # Format: ${VAR_NAME} or $VAR_NAME
+            if data.startswith('${') and data.endswith('}'):
+                var_name = data[2:-1]
+                return os.environ.get(var_name, data)
+            elif data.startswith('$') and len(data) > 1:
+                var_name = data[1:]
+                return os.environ.get(var_name, data)
+            return data
+        else:
+            return data
+    
     def _load_config(self) -> None:
         """Load configuration from file"""
         try:
@@ -173,6 +240,9 @@ class Config:
                 
             if not isinstance(new_data, dict):
                 raise ValueError("Invalid config format: root must be a dictionary")
+            
+            # Substitute environment variables
+            new_data = self._substitute_env_vars(new_data)
                 
             self.data = new_data
             logging.debug(f"Loaded config data: {self.data}")

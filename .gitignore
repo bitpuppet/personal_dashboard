@@ -53,6 +53,11 @@ dashboard.log
 *.wav
 *.ogg
 
+# Config files with sensitive data
+.env
+.env.local
+.env.*.local
+
 # Config files with sensitive data (optional - uncomment if needed)
 # config.yaml
 # config/config.yaml

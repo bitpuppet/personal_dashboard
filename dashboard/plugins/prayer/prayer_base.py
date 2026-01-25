@@ -41,9 +41,11 @@ class AladhanBackend(PrayerBackend):
             cache_key = f"prayer_times_{today.strftime('%Y-%m-%d')}"
             
             if not force_fetch:
+                self.logger.info(f"Trying to get from cache: {cache_key}")
                 # Try to get from cache first
                 cached_times = self.cache_helper.get_cached_content(cache_key)
                 if cached_times:
+                    self.logger.info(f"Got from cache: {cached_times}")
                     return self._parse_cached_times(cached_times)
             
             # Fetch fresh times from API
@@ -74,6 +76,27 @@ class AladhanBackend(PrayerBackend):
             result = {}
             for prayer, time_str in time_dict.items():
                 result[prayer] = datetime.strptime(time_str, '%Y-%m-%d %H:%M:%S')
+            
+            # Override with any test times
+            now = datetime.now()
+            today = datetime.now().date()
+            test_times = self.config.get('test_schedule', {}).get('times', {})
+            self.logger.info(f"Test times: {test_times}")
+            for prayer, time_str in test_times.items():
+                self.logger.info(f"Overriding {prayer} with test time: {time_str}")
+                try:
+                    hour, minute = map(int, time_str.split(':'))
+                    prayer_time = datetime.combine(today, time(hour, minute))
+                    self.logger.info(f"Combined {prayer} with test time: {prayer_time}")
+                    # If time has passed today, schedule for tomorrow
+                    if prayer_time <= now:
+                        prayer_time += timedelta(days=1)
+                    
+                    result[prayer] = prayer_time
+                    self.logger.debug(f"Overrode {prayer} with test time: {prayer_time}")
+                except (ValueError, TypeError) as e:
+                    self.logger.error(f"Invalid test time format for {prayer}: {time_str}")
+            
             return result
         except Exception as e:
             self.logger.error(f"Error parsing cached times: {e}")
@@ -97,7 +120,7 @@ class AladhanBackend(PrayerBackend):
             'method': method
         }
         
-        self.logger.debug(f"Making API request to {url} with params {params}")
+        self.logger.info(f"Making API request to {url} with params {params}")
         response = requests.get(url, params=params)
         response.raise_for_status()
         data = response.json()
@@ -115,11 +138,13 @@ class AladhanBackend(PrayerBackend):
         
         # Override with any test times
         test_times = self.config.get('test_schedule', {}).get('times', {})
+        self.logger.info(f"Test times: {test_times}")
         for prayer, time_str in test_times.items():
+            self.logger.info(f"Overriding {prayer} with test time: {time_str}")
             try:
                 hour, minute = map(int, time_str.split(':'))
                 prayer_time = datetime.combine(today, time(hour, minute))
-                
+                self.logger.info(f"Combined {prayer} with test time: {prayer_time}")
                 # If time has passed today, schedule for tomorrow
                 if prayer_time <= now:
                     prayer_time += timedelta(days=1)
