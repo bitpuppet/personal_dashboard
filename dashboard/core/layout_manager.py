@@ -4,11 +4,12 @@ from .component_base import DashboardComponent
 import logging
 
 class LayoutManager:
-    def __init__(self, root: tk.Tk, container: tk.Frame = None, columns: int = 2, padding: int = 10):
+    def __init__(self, root: tk.Tk, container: tk.Frame = None, columns: int = 2, padding: int = 10, bg_color: Optional[str] = None):
         self.root = root
         self.container = container if container else root
         self.base_columns = columns
         self.base_padding = padding
+        self.bg_color = bg_color
         self.frames: List[tk.Frame] = []
         self.components: Dict[str, DashboardComponent] = {}  # Track components by name
         self.logger = logging.getLogger(self.__class__.__name__)
@@ -42,12 +43,12 @@ class LayoutManager:
         if hasattr(self, 'columns_container') and self.columns_container.winfo_exists():
             self.columns_container.destroy()
         
-        self.columns_container = tk.Frame(self.container)
+        self.columns_container = tk.Frame(self.container, bg=self.bg_color)
         self.columns_container.pack(expand=True, fill=tk.BOTH)
         
         # Create column frames
         for i in range(self.columns):
-            frame = tk.Frame(self.columns_container)
+            frame = tk.Frame(self.columns_container, bg=self.bg_color)
             frame.pack(side=tk.LEFT, expand=True, fill=tk.BOTH, padx=self.padding)
             self.frames.append(frame)
         

@@ -3,6 +3,10 @@ import tkinter as tk
 from typing import Optional, Dict, Any
 import logging
 
+# Base window dimensions for responsive scaling
+BASE_WINDOW_WIDTH = 800
+BASE_WINDOW_HEIGHT = 600
+
 class DashboardComponent(ABC):
     def __init__(self, app, config: Dict[str, Any]):
         self.frame: Optional[tk.Frame] = None
@@ -11,30 +15,98 @@ class DashboardComponent(ABC):
         self.logger = logging.getLogger(self.name)
         self._latest_result = None
     
-    def _get_screen_dimensions(self) -> tuple:
-        """Get screen dimensions"""
-        if hasattr(self.app, 'root'):
-            return self.app.root.winfo_screenwidth(), self.app.root.winfo_screenheight()
-        return 1920, 1080  # Default fallback
+    def _get_window_dimensions(self) -> tuple:
+        """Get current window dimensions (not screen size)"""
+        if hasattr(self.app, 'root') and self.app.root.winfo_exists():
+            # Get actual window size
+            self.app.root.update_idletasks()  # Ensure window is rendered
+            width = self.app.root.winfo_width()
+            height = self.app.root.winfo_height()
+            # If window hasn't been rendered yet, use geometry or screen size as fallback
+            if width <= 1 or height <= 1:
+                # Try to get from geometry string
+                geometry = self.app.root.geometry()
+                if geometry and 'x' in geometry:
+                    try:
+                        size_part = geometry.split('+')[0]
+                        width, height = map(int, size_part.split('x'))
+                    except (ValueError, IndexError):
+                        # Fallback to screen size if geometry parsing fails
+                        width = self.app.root.winfo_screenwidth()
+                        height = self.app.root.winfo_screenheight()
+                else:
+                    # Fallback to screen size
+                    width = self.app.root.winfo_screenwidth()
+                    height = self.app.root.winfo_screenheight()
+            return width, height
+        return BASE_WINDOW_WIDTH, BASE_WINDOW_HEIGHT  # Default fallback
     
     def get_responsive_fonts(self) -> dict:
-        """Get responsive font sizes for this component"""
-        screen_width, screen_height = self._get_screen_dimensions()
-        # Simple scaling based on screen size (base: 1920x1080)
-        scale = min(screen_width / 1920, screen_height / 1080)
-        return {
-            'title': max(8, int(16 * scale)),
-            'heading': max(8, int(14 * scale)),
+        """Get responsive font sizes for this component based on window size, with config overrides"""
+        window_width, window_height = self._get_window_dimensions()
+        
+        # Calculate scale factor based on window size
+        # Use average of width and height scaling for better responsiveness
+        width_scale = window_width / BASE_WINDOW_WIDTH
+        height_scale = window_height / BASE_WINDOW_HEIGHT
+        # Use average for more balanced scaling, but ensure minimum readability
+        scale = (width_scale + height_scale) / 2
+        
+        # Clamp scale to reasonable bounds (0.5x to 2x)
+        scale = max(0.5, min(2.0, scale))
+        
+        # Base font sizes (defaults)
+        base_fonts = {
+            'title': max(10, int(16 * scale)),
+            'heading': max(9, int(14 * scale)),
             'body': max(8, int(12 * scale)),
-            'small': max(8, int(10 * scale)),
-            'tiny': max(8, int(8 * scale)),
+            'small': max(7, int(10 * scale)),
+            'tiny': max(6, int(8 * scale)),
         }
+        
+        # Override with config if provided
+        config_fonts = self.config.get('fonts', {})
+        if config_fonts:
+            for key in base_fonts:
+                if key in config_fonts:
+                    # If config provides a number, scale it
+                    config_value = config_fonts[key]
+                    if isinstance(config_value, (int, float)):
+                        base_fonts[key] = max(6, int(config_value * scale))
+                    elif isinstance(config_value, str) and config_value.endswith('px'):
+                        # Support "16px" format
+                        base_fonts[key] = max(6, int(float(config_value[:-2]) * scale))
+        
+        return base_fonts
+    
+    def get_font_colors(self) -> dict:
+        """Get font colors for this component from config, with defaults"""
+        # Default colors (white text for dark background)
+        default_colors = {
+            'text': '#ffffff',
+            'heading': '#ffffff',
+            'title': '#ffffff',
+            'body': '#ffffff',
+            'small': '#ffffff',
+            'tiny': '#ffffff',
+        }
+        
+        # Override with config if provided
+        config_colors = self.config.get('colors', {})
+        if config_colors:
+            default_colors.update(config_colors)
+        
+        return default_colors
     
     def get_responsive_padding(self) -> dict:
-        """Get responsive padding values for this component"""
-        screen_width, screen_height = self._get_screen_dimensions()
-        # Simple scaling based on screen size (base: 1920x1080)
-        scale = min(screen_width / 1920, screen_height / 1080)
+        """Get responsive padding values for this component based on window size"""
+        window_width, window_height = self._get_window_dimensions()
+        # Calculate scale based on window size
+        width_scale = window_width / BASE_WINDOW_WIDTH
+        height_scale = window_height / BASE_WINDOW_HEIGHT
+        scale = (width_scale + height_scale) / 2
+        # Clamp scale
+        scale = max(0.5, min(2.0, scale))
         return {
             'small': max(3, int(5 * scale)),
             'medium': max(5, int(10 * scale)),
@@ -43,16 +115,27 @@ class DashboardComponent(ABC):
         }
     
     def scale_font(self, base_size: int) -> int:
-        """Scale a font size based on screen dimensions"""
-        screen_width, screen_height = self._get_screen_dimensions()
-        scale = min(screen_width / 1920, screen_height / 1080)
+        """Scale a font size based on window dimensions"""
+        window_width, window_height = self._get_window_dimensions()
+        
+        # Calculate scale factor (average of width and height scaling)
+        width_scale = window_width / BASE_WINDOW_WIDTH
+        height_scale = window_height / BASE_WINDOW_HEIGHT
+        scale = (width_scale + height_scale) / 2
+        
+        # Clamp scale to reasonable bounds (0.5x to 2x)
+        scale = max(0.5, min(2.0, scale))
+        
         scaled = int(base_size * scale)
-        return max(8, scaled)  # Minimum readable size
+        return max(6, scaled)  # Minimum readable size
     
     def scale_padding(self, base_padding: int) -> int:
-        """Scale padding based on screen dimensions"""
-        screen_width, screen_height = self._get_screen_dimensions()
-        scale = min(screen_width / 1920, screen_height / 1080)
+        """Scale padding based on window dimensions"""
+        window_width, window_height = self._get_window_dimensions()
+        width_scale = window_width / BASE_WINDOW_WIDTH
+        height_scale = window_height / BASE_WINDOW_HEIGHT
+        scale = (width_scale + height_scale) / 2
+        scale = max(0.5, min(2.0, scale))
         return max(3, int(base_padding * scale))
         
     @property
@@ -74,21 +157,42 @@ class DashboardComponent(ABC):
         padding = self.get_responsive_padding()['medium']
         self.frame.pack(pady=padding, padx=padding, fill=tk.X)
     
-    def create_label(self, parent, text="", font_size=None, bold=False, **kwargs) -> tk.Label:
-        """Create a label with responsive font sizing"""
+    def create_label(self, parent, text="", font_size=None, bold=False, color=None, **kwargs) -> tk.Label:
+        """Create a label with responsive font sizing and configurable colors"""
         fonts = self.get_responsive_fonts()
+        colors = self.get_font_colors()
         
+        # Determine font size
+        font_size_key = None
         if font_size is None:
             font_size = fonts['body']
+            font_size_key = 'body'
         elif isinstance(font_size, str):
             # Allow using named font sizes
+            font_size_key = font_size
             font_size = fonts.get(font_size, fonts['body'])
         else:
             # Scale the provided font size
             font_size = self.scale_font(font_size)
+            font_size_key = None
         
-        font_family = kwargs.pop('font_family', 'Arial')
+        # Determine font family
+        font_family = kwargs.pop('font_family', self.config.get('font_family', 'Arial'))
         font_tuple = (font_family, font_size, "bold") if bold else (font_family, font_size)
+        
+        # Determine text color
+        if color is None:
+            # Use color based on font_size_key if it's a named size
+            if font_size_key and font_size_key in colors:
+                color = colors[font_size_key]
+            elif bold:
+                color = colors.get('heading', colors['text'])
+            else:
+                color = colors.get('text', '#ffffff')
+        
+        # Set foreground color if not already specified
+        if 'fg' not in kwargs and 'foreground' not in kwargs:
+            kwargs['fg'] = color
         
         return tk.Label(parent, text=text, font=font_tuple, **kwargs)
     

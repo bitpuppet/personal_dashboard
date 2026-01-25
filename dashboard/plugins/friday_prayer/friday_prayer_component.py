@@ -87,11 +87,11 @@ class FridayPrayerComponent(DashboardComponent):
         self.table_frame.pack(fill=tk.BOTH, expand=True, padx=padding['medium'], pady=padding['small'])
         
         # Configure column weights for responsive sizing
-        # Make mosque name column take less space, times take more
-        self.table_frame.columnconfigure(0, weight=2, minsize=80)  # Mosque name
-        self.table_frame.columnconfigure(1, weight=1, minsize=70)  # 1st Khutba
-        self.table_frame.columnconfigure(2, weight=1, minsize=70)  # 2nd Khutba
-        self.table_frame.columnconfigure(3, weight=1, minsize=70)  # 3rd Khutba
+        # Make mosque name column take more space to show full names
+        self.table_frame.columnconfigure(0, weight=3, minsize=150)  # Mosque name - increased for full display
+        self.table_frame.columnconfigure(1, weight=1, minsize=60)  # 1st Khutba
+        self.table_frame.columnconfigure(2, weight=1, minsize=60)  # 2nd Khutba
+        self.table_frame.columnconfigure(3, weight=1, minsize=60)  # 3rd Khutba
         
         # Headers - use shorter text to save space
         headers = ["Mosque", "1st", "2nd", "3rd"]
@@ -122,15 +122,16 @@ class FridayPrayerComponent(DashboardComponent):
         for mosque in self.mosques:
             mosque_name = mosque.get_name()
             
-            # Create labels for this mosque's times with compact widths
+            # Create labels for this mosque's times
+            # Remove width constraint from mosque name to allow full display
             mosque_labels = {
-                'name': self.create_label(self.table_frame, text=mosque_name, font_size='small', width=15),
+                'name': self.create_label(self.table_frame, text=mosque_name, font_size='small'),
                 'juma1': self.create_label(self.table_frame, text="--:--", font_size='small', width=8),
                 'juma2': self.create_label(self.table_frame, text="--:--", font_size='small', width=8),
                 'juma3': self.create_label(self.table_frame, text="--:--", font_size='small', width=8)
             }
             
-            # Grid the labels with sticky to prevent expansion
+            # Grid the labels - mosque name can expand, times stay fixed
             mosque_labels['name'].grid(row=current_row, column=0, padx=padding['small'], pady=2, sticky='w')
             mosque_labels['juma1'].grid(row=current_row, column=1, padx=padding['small'], pady=2, sticky='w')
             mosque_labels['juma2'].grid(row=current_row, column=2, padx=padding['small'], pady=2, sticky='w')
@@ -250,8 +251,11 @@ class FridayPrayerComponent(DashboardComponent):
             tooltip.wm_overrideredirect(True)
             tooltip.wm_geometry(f"+{event.x_root+10}+{event.y_root+10}")
             
+            # Use responsive font size for tooltip
+            fonts = self.get_responsive_fonts()
             label = tk.Label(tooltip, text=text, justify=tk.LEFT,
-                           background="#ffffe0", relief=tk.SOLID, borderwidth=1)
+                           background="#ffffe0", relief=tk.SOLID, borderwidth=1,
+                           font=("Arial", fonts['small']))
             label.pack()
             
             def hide_tooltip():

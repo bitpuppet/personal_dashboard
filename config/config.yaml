@@ -5,6 +5,7 @@ window:
   height: 600
   auto_size: false
   margin_percent: 5
+  background_color: "#000000"  # Background color (use hex color codes like "#ffffff" for white, "#000000" for black)
 
 layout:
   columns: 2
@@ -53,6 +54,17 @@ components:
     update_interval: 3600
     row: 1  # Second row
     column: 0  # First column
+    # Optional: Customize fonts and colors
+    # fonts:
+    #   title: 18
+    #   heading: 16
+    #   body: 12
+    #   small: 10
+    #   tiny: 8
+    # colors:
+    #   text: "#ffffff"
+    #   heading: "#ffffff"
+    #   title: "#ffffff"
 
   "Prayer Times":
     enable: true
@@ -67,13 +79,24 @@ components:
     row: 0  # First row
     column: 1  # Second column
     enable_adhan: true
-    # test_schedule:
-    #   times:
-    #     Fajr: "12:52"
-    #     Dhuhr: "13:00"
-    #     Asr: "14:02"
-    #     Maghrib: "13:00"
-    #     Isha: "13:00"
+    # Optional: Customize fonts and colors
+    # fonts:
+    #   title: 18
+    #   heading: 16
+    #   body: 12
+    #   small: 10
+    #   tiny: 8
+    # colors:
+    #   text: "#ffffff"
+    #   heading: "#ffffff"
+    #   title: "#ffffff"
+    test_schedule:
+      times:
+        Fajr: "12:52"
+        Dhuhr: "13:00"
+        Asr: "14:40"
+        Maghrib: "13:00"
+        Isha: "13:00"
     adhan:
       auto_download: true
       default_url: "https://www.islamcan.com/audio/adhan/azan3.mp3"
@@ -99,6 +122,17 @@ components:
     row: 0  # First row
     column: 0  # First column
     max_width: 400  # Maximum width in pixels to keep it compact
+    # Optional: Customize fonts and colors
+    # fonts:
+    #   title: 18
+    #   heading: 16
+    #   body: 12
+    #   small: 10
+    #   tiny: 8
+    # colors:
+    #   text: "#ffffff"
+    #   heading: "#ffffff"
+    #   title: "#ffffff"
     daily_update:
       enabled: true
       time: "10:13"  # 24-hour format

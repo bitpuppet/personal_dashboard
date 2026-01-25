@@ -133,9 +133,24 @@ class TaskManagerComponent(DashboardComponent):
                 if task_name in self.task_rows:
                     labels = self.task_rows[task_name]
                     
-                    # Update next run time using Timer's _when attribute
-                    if hasattr(task, '_when') and task._when is not None:
-                        time_left = task._when - now.timestamp()
+                    # Update next run time
+                    next_run_time = None
+                    
+                    # Try to get scheduled_time from timer (stored when task was created)
+                    if hasattr(task, 'scheduled_time'):
+                        next_run_time = task.scheduled_time
+                    # Fallback: try _when attribute (private Timer attribute)
+                    elif hasattr(task, '_when') and task._when is not None:
+                        next_run_time = task._when
+                    # Fallback: calculate from last_run + interval if recurring
+                    elif hasattr(task, 'last_run') and task.last_run and hasattr(task, 'interval') and task.interval:
+                        next_run_time = task.last_run + task.interval
+                    # Fallback: calculate from delay if task hasn't run yet
+                    elif hasattr(task, 'delay'):
+                        next_run_time = datetime.now().timestamp() + task.delay
+                    
+                    if next_run_time:
+                        time_left = next_run_time - now.timestamp()
                         if time_left > 0:
                             labels['next_run'].config(
                                 text=self._format_timedelta(timedelta(seconds=time_left))
