@@ -221,7 +221,7 @@ class PrayerTimesComponent(DashboardComponent):
         midnight = (now.replace(hour=0, minute=0, second=0, microsecond=0) + 
                    timedelta(days=1))
         delay = (midnight - now).total_seconds()
-        
+        self.logger.info(f"Scheduling next day's prayer times update at {midnight} in {delay} seconds")
         self.app.task_manager.schedule_task(
             f"{self.name}_daily_update",
             self.fetch_and_schedule_prayers,
@@ -235,7 +235,7 @@ class PrayerTimesComponent(DashboardComponent):
             prayer_times = self.backend.get_prayer_times(force_fetch)
             
             if prayer_times:
-                self.logger.debug(f"Received prayer times: {prayer_times}")
+                self.logger.info(f"Received prayer times: {prayer_times}")
                 for prayer, time in prayer_times.items():
                     self.schedule_adhan(prayer, time)
                     self.logger.info(f"Scheduled adhan for {prayer} at {time}")
@@ -274,6 +274,7 @@ class PrayerTimesComponent(DashboardComponent):
             
             # Schedule adhan task
             task_name = f"{self.name}_{next_prayer}_adhan"
+            self.logger.info(f"---Scheduling adhan for {next_prayer} in {delay} seconds")
             self.app.task_manager.schedule_task(
                 task_name,
                 lambda p=next_prayer: self._schedule_next_after_adhan(p),
@@ -286,6 +287,7 @@ class PrayerTimesComponent(DashboardComponent):
     def _schedule_next_after_adhan(self, prayer: str) -> None:
         """Play adhan and schedule next prayer"""
         # Play current adhan
+        self.logger.info(f"Playing adhan and Scheduling next after adhan for {prayer}")
         if self.enable_adhan and hasattr(self, 'adhan_manager'):
             if self.adhan_manager.play_adhan(prayer):
                 self._show_playing_state(prayer)
@@ -551,6 +553,7 @@ class PrayerTimesComponent(DashboardComponent):
     def play_adhan(self, prayer_name: str) -> None:
         """Play adhan for a specific prayer"""
         try:
+            self.logger.info(f"Playing adhan for {prayer_name}")
             if not self.enable_adhan:
                 self.logger.info(f"Adhan is disabled, skipping {prayer_name}")
                 return

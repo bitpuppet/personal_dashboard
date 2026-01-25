@@ -27,18 +27,20 @@ class TaskManager:
         """Schedule a task to run after delay seconds"""
         try:
             # Cancel existing task if any
+            self.logger.info(f"Scheduling task {name} with delay {delay} seconds")
             if name in self.tasks:
+                self.logger.info(f"Cancelling existing task {name}")
                 self.tasks[name].cancel()
             
             # Create new timer
             timer = Timer(delay, self._run_task, args=(name, callback, delay, one_time))
             timer.daemon = True
-            timer.interval = delay if not one_time else None
-            
+            #timer.interval = delay if not one_time else None
+            self.logger.info(f"Timer interval: {timer.interval}")
             # Store and start timer
             self.tasks[name] = timer
             timer.start()
-            
+            self.logger.info(f"Timer started for {name}")
         except Exception as e:
             self.logger.error(f"Error scheduling task {name}: {e}")
 

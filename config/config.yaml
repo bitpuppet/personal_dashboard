@@ -17,7 +17,7 @@ components:
   "Hello World": {}  # No specific config needed for hello world
 
   "Weather":
-    api_key: "86917a20a6f7ed93fbe462d6395c1778"  # Put your actual API key here
+    api_key: "${WEATHER_API_KEY}"  # Load from .env file or set environment variable
     city: "Murphy, TX"
     lat: 33.0185  # Murphy, TX latitude
     lon: -96.6135 # Murphy, TX longitude
@@ -66,7 +66,14 @@ components:
     show_test_buttons: false  # Make test column configurable
     row: 0  # First row
     column: 1  # Second column
-
+    enable_adhan: true
+    # test_schedule:
+    #   times:
+    #     Fajr: "12:52"
+    #     Dhuhr: "13:00"
+    #     Asr: "14:02"
+    #     Maghrib: "13:00"
+    #     Isha: "13:00"
     adhan:
       auto_download: true
       default_url: "https://www.islamcan.com/audio/adhan/azan3.mp3"
@@ -106,7 +113,7 @@ components:
         timezone: "America/Chicago"
 
   "Task Manager":
-    enable: false
+    enable: true
     headline: "Scheduled Tasks"
     update_interval: 1000  # Update every second
     row: 1  # Second row

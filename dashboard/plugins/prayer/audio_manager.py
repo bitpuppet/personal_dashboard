@@ -28,8 +28,9 @@ class AdhanManager:
         self._setup_adhan_files(download=True)
         
         # Create cache directory if it doesn't exist
-        self.cache_dir = os.path.expanduser("~/.personal_dashboard/adhan_cache")
-        os.makedirs(self.cache_dir, exist_ok=True)
+        cache_dir_str = os.path.expanduser("~/.personal_dashboard/adhan_cache")
+        self.cache_dir = Path(cache_dir_str)
+        self.cache_dir.mkdir(parents=True, exist_ok=True)
         
         # Load saved volumes
         self.volumes_file = os.path.expanduser(config['adhan'].get('volumes_file', '~/.personal_dashboard/adhan_volume.json'))
@@ -173,21 +174,25 @@ class AdhanManager:
                     self.next_adhan[prayer] = time + timedelta(days=1)
                 else:
                     self.next_adhan[prayer] = time
+            self.logger.info(f"Next adhan times: {self.next_adhan}")
             return None
         
         for prayer, time in prayer_times.items():
+            self.logger.debug(f"Checking prayer: {prayer} at time: {time}")
             if not self.adhan_files.get(prayer):
+                self.logger.info(f"No adhan file found for {prayer}")
                 continue
                 
             if now >= time and (
                 prayer not in self.next_adhan or 
                 time > self.next_adhan[prayer]
             ):
-                self.logger.info(f"Time for {prayer} prayer")
+                self.logger.debug(f"Time for {prayer} prayer")
                 if self.play_adhan(self.adhan_files[prayer].as_posix()):
+                    self.logger.debug(f"Playing adhan for {prayer}")
                     self.next_adhan[prayer] = time + timedelta(days=1)
                     return prayer
-        
+
         return None
     
     def needs_download(self, prayer: str) -> bool:
