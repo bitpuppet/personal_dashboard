@@ -29,9 +29,17 @@ class DashboardApp:
         # Configure window
         self._configure_window()
         
+        # Apply background color
+        self._apply_background_color()
+        
         # Create main container for components
         self.main_container = tk.Frame(self.root)
         self.main_container.pack(fill=tk.BOTH, expand=True)
+        
+        # Apply background color to main container
+        bg_color = self.config.data.get("window", {}).get("background_color")
+        if bg_color:
+            self.main_container.configure(bg=bg_color)
         
         # Initialize managers and core services
         self.plugin_manager = PluginManager()
@@ -42,12 +50,16 @@ class DashboardApp:
         screen_width = self.root.winfo_screenwidth()
         screen_height = self.root.winfo_screenheight()
         
+        # Get background color for layout manager
+        bg_color = self.config.data.get("window", {}).get("background_color")
+        
         # Initialize layout manager with responsive sizing
         self.layout_manager = LayoutManager(
             self.root,  # Pass root for screen dimension access
             container=self.main_container,  # Pass container for component placement
             columns=self.config.data["layout"].get("columns", 2),
-            padding=self.config.data["layout"].get("padding", 10)
+            padding=self.config.data["layout"].get("padding", 10),
+            bg_color=bg_color  # Pass background color
         )
         
         # Create taskbar
@@ -142,6 +154,15 @@ class DashboardApp:
         
         # Bind window resize event to update responsive layout
         self.root.bind('<Configure>', self._on_window_resize)
+    
+    def _apply_background_color(self) -> None:
+        """Apply background color to the root window"""
+        bg_color = self.config.data.get("window", {}).get("background_color")
+        if bg_color:
+            self.root.configure(bg=bg_color)
+            # Also set the default background for all widgets
+            self.root.option_add('*background', bg_color)
+            self.root.option_add('*Background', bg_color)
 
     def initialize_components(self):
         try:
@@ -228,6 +249,15 @@ class DashboardApp:
             # Update window settings if changed
             if old_config.get('window') != new_config.get('window'):
                 self._configure_window()
+                self._apply_background_color()
+                # Update main container background
+                bg_color = new_config.get('window', {}).get('background_color')
+                if bg_color:
+                    self.main_container.configure(bg=bg_color)
+                # Update layout manager background
+                if hasattr(self, 'layout_manager'):
+                    self.layout_manager.bg_color = bg_color
+                    self.layout_manager._setup_grid()  # Recreate frames with new color
             
             # Restore menubar
             self.root['menu'] = original_menubar

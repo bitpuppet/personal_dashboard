@@ -32,15 +32,24 @@ class TaskManager:
                 self.logger.info(f"Cancelling existing task {name}")
                 self.tasks[name].cancel()
             
+            # Calculate when the task should run
+            scheduled_time = datetime.now().timestamp() + delay
+            
             # Create new timer
             timer = Timer(delay, self._run_task, args=(name, callback, delay, one_time))
             timer.daemon = True
-            #timer.interval = delay if not one_time else None
-            self.logger.info(f"Timer interval: {timer.interval}")
+            
+            # Store metadata on the timer for display purposes
+            timer.scheduled_time = scheduled_time
+            # timer.delay = delay
+            # timer.interval = delay if not one_time else None
+            # timer.one_time = one_time
+            # timer.last_run = None  # Will be set when task runs
+            
             # Store and start timer
             self.tasks[name] = timer
             timer.start()
-            self.logger.info(f"Timer started for {name}")
+            self.logger.info(f"Timer started for {name}, scheduled for {datetime.fromtimestamp(scheduled_time)}")
         except Exception as e:
             self.logger.error(f"Error scheduling task {name}: {e}")
 

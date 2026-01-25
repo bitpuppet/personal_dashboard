@@ -6,8 +6,12 @@ class TaskBar(tk.Frame):
         super().__init__(parent)
         self.app = app
         
-        # Set background color to match app
-        self.bg_color = parent.cget('bg')
+        # Set background color to match app (from config or parent)
+        bg_color = app.config.data.get("window", {}).get("background_color")
+        if bg_color:
+            self.bg_color = bg_color
+        else:
+            self.bg_color = parent.cget('bg')
         
         # Configure taskbar appearance
         self.configure(

@@ -361,9 +361,11 @@ class HourlyWeatherComponent(WeatherBase):
             tooltip.wm_overrideredirect(True)
             tooltip.wm_geometry(f"+{event.x_root+10}+{event.y_root+10}")
             
+            # Use responsive font size for tooltip
+            fonts = self.get_responsive_fonts()
             label = tk.Label(tooltip, text=text, justify=tk.LEFT,
                            background="#ffffe0", relief=tk.SOLID, borderwidth=1,
-                           font=("Arial", 10))
+                           font=("Arial", fonts['small']))
             label.pack()
             
             def hide_tooltip():
