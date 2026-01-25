@@ -29,7 +29,7 @@ components:
     column: 0  # First column
 
   "System Logs":
-    enable: true
+    enable: false
     level: "INFO"  # Can be DEBUG, INFO, WARNING, or ERROR
     # System Logs always appears at the bottom, row/column ignored
 
