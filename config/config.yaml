@@ -90,13 +90,13 @@ components:
     #   text: "#ffffff"
     #   heading: "#ffffff"
     #   title: "#ffffff"
-    test_schedule:
-      times:
-        Fajr: "12:52"
-        Dhuhr: "13:00"
-        Asr: "14:40"
-        Maghrib: "13:00"
-        Isha: "13:00"
+    # test_schedule:
+    #   times:
+    #     Fajr: "12:52"
+    #     Dhuhr: "13:00"
+    #     Asr: "14:40"
+    #     Maghrib: "13:00"
+    #     Isha: "13:00"
     adhan:
       auto_download: true
       default_url: "https://www.islamcan.com/audio/adhan/azan3.mp3"
