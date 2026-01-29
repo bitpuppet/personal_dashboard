@@ -82,13 +82,3 @@ class EastPlanoMosque(MosqueBase):
         except Exception as e:
             self.logger.error(f"Error parsing Friday times from {self.get_name()}: {e}")
             return None
-    
-    def _get_suffix(self, num: int) -> str:
-        """Return the appropriate suffix for a number (1st, 2nd, 3rd, etc.)"""
-        if num == 1:
-            return "st"
-        elif num == 2:
-            return "nd"
-        elif num == 3:
-            return "rd"
-        return "th" 
