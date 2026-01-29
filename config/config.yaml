@@ -137,10 +137,10 @@ components:
       enabled: true
       time: "10:13"  # 24-hour format
     mosques:
-      # - type: "sachse_islamic_center"
-      #   name: "Sachse Islamic Center"
-      #   url: "https://sachsemasjid.org"
-      #   timezone: "America/Chicago"
+      - type: "sachse_islamic_center"
+        name: "Sachse Islamic Center"
+        url: "https://sachsemasjid.org"
+        timezone: "America/Chicago"
       - type: "east_plano"
         name: "East Plano Islamic Center"
         url: "https://epicmasjid.org"
