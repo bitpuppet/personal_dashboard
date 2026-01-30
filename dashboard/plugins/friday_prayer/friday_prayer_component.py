@@ -14,6 +14,7 @@ class FridayPrayerComponent(DashboardComponent):
         super().__init__(app, config)
         self.mosques = self._initialize_mosques()
         self.cached_times = {}
+        self.should_refresh_screen = True
         
         # Setup daily update if enabled
         daily_update_config = self.config.get('daily_update', {})
@@ -198,14 +199,18 @@ class FridayPrayerComponent(DashboardComponent):
             
             # Update display
             self.frame.after(0, self.update)  # Schedule update on main thread
-            
+            self.should_refresh_screen = True
+
         except Exception as e:
             self.logger.error(f"Error in daily update: {e}")
     
     def update(self) -> None:
         """Update prayer times display"""
+        if not self.should_refresh_screen:
+            return
         try:
             for mosque in self.mosques:
+                self.logger.info(f"Updating times for {mosque.get_name()}")
                 mosque_name = mosque.get_name()
                 if mosque_name in self.mosque_rows:
                     # Use cached times if available
@@ -226,6 +231,8 @@ class FridayPrayerComponent(DashboardComponent):
             
         except Exception as e:
             self.logger.error(f"Error updating Friday prayer times: {e}")
+        finally:
+            self.should_refresh_screen = False
     
     def _parse_juma_times(self, time_text: str) -> Dict[int, str]:
         """Parse the combined time string into individual times"""

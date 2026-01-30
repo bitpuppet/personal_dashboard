@@ -211,11 +211,14 @@ class DashboardApp:
             # Update components
             for component in self.components:
                 component.update()
-                
-            self.root.after(
-                self.config.data["update_interval"],
-                self.update_components
-            )
+                update_interval = component.config.get("update_interval", self.config.data["update_interval"])
+                self.logger.info(f"Scheduling next update for {component.name} in {update_interval} milliseconds")
+                self.root.after(update_interval, component.update)    
+            
+            # self.root.after(
+            #     self.config.data["update_interval"],
+            #     self.update_components
+            # )
             
         except Exception as e:
             logging.error(f"Error updating components: {e}")
