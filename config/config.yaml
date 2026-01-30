@@ -1,9 +1,9 @@
 window:
-  fullscreen: true
+  fullscreen: "${FULLSCREEN}"
   borderless: false
   width: 800
   height: 600
-  auto_size: true
+  auto_size: "${AUTO_SIZE}"
   margin_percent: 5
   background_color: "#000000"  # Background color (use hex color codes like "#ffffff" for white, "#000000" for black)
 
