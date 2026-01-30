@@ -46,7 +46,8 @@ components:
 
   "Weekly Weather":
     enable: true
-    headline: "7-Day Weather Outlook"
+    headline: "{forecast_days}-Day Weather Outlook"  # {forecast_days} replaced by config forecast_days
+    forecast_days: 4  # Number of days to show (1-14); default 4
     backend: "nws"  # Use NWS backend
     lat: 33.0185
     lon: -96.6135
@@ -70,7 +71,7 @@ components:
     enable: true
     headline: "Utilities Bill Due"
     schedule_time: "07:00"  # Run daily at 7 AM (24-hour); or use update_interval: 86400
-    row: 2  # Third row (below Hourly Weather, 7-Day Forecast)
+    row: 2  # Third row (below Hourly Weather, 4-Day Forecast)
     column: 0
     headless: false  # set to false to show browser when fetching (per-backend override also supported)
     update_interval: 86400000 # 1 day in milliseconds

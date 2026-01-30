@@ -22,7 +22,14 @@ class WeeklyWeatherComponent(DashboardComponent):
         self.icon_manager = IconManager()
         self.backend = self._create_backend()
         self.cached_data = None
-        
+        # Number of forecast days to show (from config, default 4, clamp 1-14)
+        raw = self.config.get("forecast_days", 4)
+        try:
+            n = int(raw)
+            self._num_forecast_days = max(1, min(14, n))
+        except (TypeError, ValueError):
+            self._num_forecast_days = 4
+
         # Schedule daily cache refresh at 10 AM
         self._schedule_daily_cache_refresh()
     
@@ -82,10 +89,13 @@ class WeeklyWeatherComponent(DashboardComponent):
         header_frame = tk.Frame(self.main_container)
         header_frame.pack(fill=tk.X, padx=padding['medium'], pady=(padding['small'], 0))
         
-        # Title
+        # Title (interpolate {forecast_days} / {days} from config so headline matches forecast_days)
+        default_headline = f"{self._num_forecast_days}-Day Forecast"
+        headline_text = self.headline or default_headline
+        headline_text = headline_text.replace("{forecast_days}", str(self._num_forecast_days)).replace("{days}", str(self._num_forecast_days))
         self.create_label(
             header_frame,
-            text=self.headline or "7-Day Forecast",
+            text=headline_text,
             font_size='heading',
             bold=True
         ).pack(side=tk.LEFT)
@@ -117,7 +127,7 @@ class WeeklyWeatherComponent(DashboardComponent):
         
         # Create forecast rows
         self.forecast_days = []
-        for _ in range(7):
+        for _ in range(self._num_forecast_days):
             day_frame = tk.Frame(self.main_container)
             day_frame.pack(fill=tk.X, padx=padding['medium'], pady=2)
             
@@ -204,10 +214,16 @@ class WeeklyWeatherComponent(DashboardComponent):
             daily = self.cached_data.get('daily', [])
             self.logger.debug(f"Processing {len(daily)} daily forecasts")
             
-            for i, day_data in enumerate(daily[:7]):
-                self.logger.debug(f"Processing day {i}: {day_data}")
+            n = self._num_forecast_days
+            for i in range(n):
                 day_frame = self.forecast_days[i]
-                
+                if i >= len(daily):
+                    day_frame['day'].config(text="--")
+                    day_frame['temp'].config(text="--°F")
+                    day_frame['desc'].config(text="--")
+                    continue
+                day_data = daily[i]
+                self.logger.debug(f"Processing day {i}: {day_data}")
                 # Update day name
                 day_frame['day'].config(text=self.format_day(day_data['dt']))
                 
