@@ -111,34 +111,16 @@ class HourlyWeatherComponent(WeatherBase):
         # Create tooltip
         self._create_tooltip(refresh_button, "Refresh forecast")
         
-        # Create scrollable frame for hourly data
-        scroll_container = tk.Frame(self.main_container)
-        scroll_container.pack(fill="x", expand=True)
+        # Responsive hourly strip (no scrollbar) - hours share space and wrap to fit
+        self.hours_container = tk.Frame(self.main_container)
+        self.hours_container.pack(fill=tk.BOTH, expand=True)
         
-        # Canvas for scrolling
-        self.canvas = tk.Canvas(scroll_container, height=150)
-        self.canvas.pack(side=tk.TOP, fill="x", expand=True)
-        
-        # Scrollbar - packed but initially hidden
-        self.scrollbar = tk.Scrollbar(scroll_container, orient="horizontal", command=self.canvas.xview)
-        self.scrollbar.pack(side=tk.BOTTOM, fill="x")
-        
-        # Content frame
-        self.scrollable_frame = tk.Frame(self.canvas)
-        
-        # Configure canvas scrolling
-        self.canvas.configure(xscrollcommand=self.scrollbar.set)
-        self.canvas_window = self.canvas.create_window((0, 0), window=self.scrollable_frame, anchor="nw")
-        
-        # Bind events for dynamic scrollbar
-        self.scrollable_frame.bind("<Configure>", self._on_frame_configure)
-        self.canvas.bind("<Configure>", self._on_canvas_configure)
-        
-        # Create hour frames
+        # Create hour frames in a grid so they share width equally
         self.hour_frames = []
-        for _ in range(self.hours_to_show):  # Use configured number of hours
-            hour_frame = tk.Frame(self.scrollable_frame)
-            hour_frame.pack(side=tk.LEFT, padx=padding['small'], pady=padding['small'])
+        for col in range(self.hours_to_show):
+            hour_frame = tk.Frame(self.hours_container)
+            hour_frame.grid(row=0, column=col, padx=padding['small'], pady=padding['small'], sticky="nsew")
+            self.hours_container.columnconfigure(col, weight=1, minsize=50)
             
             time_label = self.create_label(
                 hour_frame,
@@ -158,11 +140,13 @@ class HourlyWeatherComponent(WeatherBase):
             )
             temp_label.pack()
             
+            # Responsive wraplength (pixels) so description fits when hours share space
+            wrap = max(40, self.scale_padding(25) * 2)
             desc_label = self.create_label(
                 hour_frame,
                 text="--",
                 font_size='tiny',
-                wraplength=100
+                wraplength=wrap
             )
             desc_label.pack()
             
@@ -173,6 +157,7 @@ class HourlyWeatherComponent(WeatherBase):
                 'temp': temp_label,
                 'desc': desc_label
             })
+        self.hours_container.rowconfigure(0, weight=1)
         
         # Error label
         self.error_label = self.create_label(
@@ -197,36 +182,6 @@ class HourlyWeatherComponent(WeatherBase):
             update_interval = self.config.get("update_interval", 600)
             self.logger.info(f"Hourly Weather update interval: {update_interval}")
             self.app.task_manager.schedule_task(self.name, self.fetch_weather, update_interval)
-    
-    def _on_frame_configure(self, event=None):
-        """Handle scrollable frame size changes"""
-        # Update the canvas scrollregion
-        self.canvas.configure(scrollregion=self.canvas.bbox("all"))
-        
-        # Show/hide scrollbar based on content width
-        self._update_scrollbar()
-    
-    def _on_canvas_configure(self, event=None):
-        """Handle canvas size changes"""
-        if event:
-            # Update the width of the scrollable window to match canvas
-            self.canvas.itemconfig(self.canvas_window, width=event.width)
-        self._update_scrollbar()
-    
-    def _update_scrollbar(self):
-        """Show or hide scrollbar based on content width"""
-        # Get the total width of content and visible width
-        content_width = self.scrollable_frame.winfo_reqwidth()
-        visible_width = self.canvas.winfo_width()
-        
-        if content_width > visible_width:
-            # Content is wider than visible area - show scrollbar
-            self.scrollbar.pack(side=tk.BOTTOM, fill="x")
-            self.canvas.configure(yscrollcommand=self.scrollbar.set)
-        else:
-            # Content fits - hide scrollbar
-            self.scrollbar.pack_forget()
-            self.canvas.configure(xscrollcommand=None)
     
     def fetch_weather(self, force_fetch=False):
         """Fetch hourly forecast data"""
@@ -287,8 +242,9 @@ class HourlyWeatherComponent(WeatherBase):
                 frame['temp'].config(text=f"{temp}°F")
                 frame['desc'].config(text=desc)
                 
-                # Update icon based on weather condition
-                icon = self.icon_manager.get_icon(desc, size=(40, 40))
+                # Update icon based on weather condition (responsive size)
+                icon_size = max(24, min(48, self.scale_font(12) * 3))
+                icon = self.icon_manager.get_icon(desc, size=(icon_size, icon_size))
                 if icon:
                     frame['icon'].config(image=icon)
                     frame['icon'].image = icon  # Keep reference
