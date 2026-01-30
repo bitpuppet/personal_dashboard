@@ -189,6 +189,7 @@ class UtilitiesBillDueComponent(DashboardComponent):
             if len(errors) > 2:
                 self.cached_error += "..."
 
+        # Order by due date (soonest first); items with no due_date go to the end
         all_items.sort(key=lambda x: x.due_date or date(9999, 12, 31))
         self.cached_data = all_items
         self.logger.info(f"Utilities Bill Due: fetch done, {len(all_items)} item(s)")
