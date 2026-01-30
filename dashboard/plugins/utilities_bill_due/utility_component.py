@@ -224,7 +224,10 @@ class UtilitiesBillDueComponent(DashboardComponent):
             due_str = ""
             if item.due_date:
                 due_str = item.due_date.strftime("%m/%d/%Y") if item.due_date else ""
-            status = "Due" if item.payment_due else "Not due"
+            if (item.source or "").strip() in ("CoServ", "Farmers Electric"):
+                status = "Due (autopay)" if item.payment_due else "Not due (autopay)"
+            else:
+                status = "Due" if item.payment_due else "Not due"
             utility_display = (item.utility_type or "").capitalize()
             usage_str = getattr(item, "usage", None) or "—"
             for col, val in enumerate([
