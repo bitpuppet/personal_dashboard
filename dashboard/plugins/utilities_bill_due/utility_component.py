@@ -74,6 +74,17 @@ class UtilitiesBillDueComponent(DashboardComponent):
         self._fetch_bills()
         self._schedule_next_daily_run()
 
+    def _request_ui_update(self) -> None:
+        """Ask main thread to refresh the table (safe to call from background thread)."""
+        try:
+            self.app.task_manager.result_queue.put((self.name, None))
+        except Exception:
+            pass
+
+    def handle_background_result(self, result: Any) -> None:
+        """Called on main thread when a fetch task finishes; redraw table."""
+        self.update()
+
     def initialize(self, parent: tk.Frame) -> None:
         super().initialize(parent)
         padding = self.get_responsive_padding()
@@ -110,7 +121,7 @@ class UtilitiesBillDueComponent(DashboardComponent):
             fill=tk.BOTH, expand=True, padx=padding["medium"], pady=padding["small"]
         )
 
-        headers = ["Utility", "Source", "Due Date", "Status"]
+        headers = ["Utility", "Source", "Due Date", "Usage", "Status"]
         for col, header in enumerate(headers):
             self.create_label(
                 self.table_frame,
@@ -133,7 +144,7 @@ class UtilitiesBillDueComponent(DashboardComponent):
         )
         self.error_label.pack(pady=padding["small"])
 
-        # Run initial fetch in background so UI loads immediately (shows "Loading..." until done)
+        # Run initial fetch in background: pull from all backends, then update UI once
         self.app.task_manager.schedule_task(
             f"{self.name}_initial_fetch",
             self._fetch_bills,
@@ -159,8 +170,7 @@ class UtilitiesBillDueComponent(DashboardComponent):
         self._backends = self._build_backends()
         if not self._backends:
             self.cached_error = "Add at least one backend in config (backends: type, utility_type, username_env, password_env)"
-            if self.frame and self.frame.winfo_exists():
-                self.frame.after(0, self.update)
+            self._request_ui_update()
             return
 
         self.logger.info(f"Utilities Bill Due: starting fetch ({len(self._backends)} backend(s))")
@@ -182,8 +192,7 @@ class UtilitiesBillDueComponent(DashboardComponent):
         all_items.sort(key=lambda x: x.due_date or date(9999, 12, 31))
         self.cached_data = all_items
         self.logger.info(f"Utilities Bill Due: fetch done, {len(all_items)} item(s)")
-        if self.frame and self.frame.winfo_exists():
-            self.frame.after(0, self.update)
+        self._request_ui_update()
 
     def update(self) -> None:
         """Redraw table from cached_data (main thread)."""
@@ -206,7 +215,7 @@ class UtilitiesBillDueComponent(DashboardComponent):
             lbl = self.create_label(
                 self.table_frame, text=msg or "Loading...", font_size="small"
             )
-            lbl.grid(row=row, column=0, columnspan=4, padx=padding["small"], pady=4, sticky="w")
+            lbl.grid(row=row, column=0, columnspan=5, padx=padding["small"], pady=4, sticky="w")
             self._row_widgets.append(lbl)
             return
 
@@ -217,10 +226,12 @@ class UtilitiesBillDueComponent(DashboardComponent):
                 due_str = item.due_date.strftime("%m/%d/%Y") if item.due_date else ""
             status = "Due" if item.payment_due else "Not due"
             utility_display = (item.utility_type or "").capitalize()
+            usage_str = getattr(item, "usage", None) or "—"
             for col, val in enumerate([
                 utility_display,
                 item.source or "—",
                 due_str or "—",
+                usage_str,
                 status,
             ]):
                 lbl = self.create_label(

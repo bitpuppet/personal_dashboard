@@ -60,6 +60,7 @@ dashboard.log
 .cache/*
 client_secret.json
 .config/*
+scripts/*
 
 # Config files with sensitive data (optional - uncomment if needed)
 # config.yaml

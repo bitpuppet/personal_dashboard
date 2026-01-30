@@ -80,6 +80,11 @@ components:
         username_env: "${MURPHYTX_USERNAME}"
         password_env: "${MURPHYTX_PASSWORD}"
         headless: true  # override: show browser for this backend only
+      - type: farmerselectric
+        utility_type: electric
+        username_env: "${FARMERSELECTRIC_USERNAME}"
+        password_env: "${FARMERSELECTRIC_PASSWORD}"
+        headless: true
 
   "Prayer Times":
     enable: true

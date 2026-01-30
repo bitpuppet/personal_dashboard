@@ -319,10 +319,26 @@ class DashboardApp:
             # Rollback to previous components if update fails
             self.components = current_components
 
+    def _drain_result_queue(self) -> None:
+        """Drain background task results and notify components (called from main thread)."""
+        try:
+            while not self.task_manager.result_queue.empty():
+                task_name, result = self.task_manager.result_queue.get_nowait()
+                logging.debug(f"Processing task result for {task_name}: {result}")
+                for component in self.components:
+                    if component.name == task_name:
+                        logging.debug(f"Sending result to component {component.name}")
+                        component.handle_background_result(result)
+                        break
+        except Exception as e:
+            logging.error(f"Error draining result queue: {e}")
+        self.root.after(1000, self._drain_result_queue)
+
     def run(self):
         try:
             with DashboardContext.app_context(self):
                 self.update_components()
+                self.root.after(1000, self._drain_result_queue)
                 self.root.mainloop()
         finally:
             self.task_manager.stop()
