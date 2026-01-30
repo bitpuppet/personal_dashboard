@@ -224,7 +224,10 @@ class UtilitiesBillDueComponent(DashboardComponent):
             due_str = ""
             if item.due_date:
                 due_str = item.due_date.strftime("%m/%d/%Y") if item.due_date else ""
-            if (item.source or "").strip() in ("CoServ", "Farmers Electric"):
+            raw = (getattr(item, "raw_status", None) or "").strip()
+            if raw and not raw.lower().startswith("balance="):
+                status = raw
+            elif (item.source or "").strip() in ("CoServ", "Farmers Electric"):
                 status = "Due (autopay)" if item.payment_due else "Not due (autopay)"
             else:
                 status = "Due" if item.payment_due else "Not due"
