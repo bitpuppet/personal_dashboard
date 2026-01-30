@@ -94,9 +94,9 @@ class PrayerTimesComponent(DashboardComponent):
             font_size='small'
         ).pack(side=tk.RIGHT)
         
-        # Prayer times table
+        # Prayer times table (no bottom padding so countdown sits right under last row)
         table_frame = tk.Frame(self.main_container)
-        table_frame.pack(fill=tk.BOTH, expand=True, padx=padding['medium'], pady=padding['small'])
+        table_frame.pack(fill=tk.BOTH, expand=True, padx=padding['medium'], pady=(padding['small'], 0))
         
         # Headers
         # Adjust column widths based on test buttons visibility
@@ -137,18 +137,21 @@ class PrayerTimesComponent(DashboardComponent):
         # Get test schedule configuration
         test_times = self.config.get('test_schedule', {}).get('times', {})
         
+        num_prayers = len(prayer_names)
         for i, prayer in enumerate(prayer_names, 1):
+            # Last row: no bottom padding so countdown sits right below
+            row_pady = (2, 0) if i == num_prayers else 2
             # Prayer name with adjusted width
             self.create_label(
                 table_frame,
                 text=prayer,
                 font_size='small',
                 width=prayer_width
-            ).grid(row=i, column=0, padx=padding['small'], pady=2)
+            ).grid(row=i, column=0, padx=padding['small'], pady=row_pady)
             
             # Time container frame
             time_frame = tk.Frame(table_frame)
-            time_frame.grid(row=i, column=1, padx=padding['small'], pady=2)
+            time_frame.grid(row=i, column=1, padx=padding['small'], pady=row_pady)
             
             # Time label
             time_label = self.create_label(
@@ -169,7 +172,7 @@ class PrayerTimesComponent(DashboardComponent):
                     style="TButton",  # Use default style
                     command=lambda p=prayer: self._test_adhan(p)
                 )
-                test_btn.grid(row=i, column=2, padx=padding['small'], pady=2)
+                test_btn.grid(row=i, column=2, padx=padding['small'], pady=row_pady)
                 self._create_tooltip(test_btn, f"Test {prayer} Adhan")
             
             # Playing icon (initially hidden) - make it clickable
@@ -195,9 +198,9 @@ class PrayerTimesComponent(DashboardComponent):
         )
         self.error_label.pack(pady=padding['small'])
         
-        # Add countdown label after the prayer times table
+        # Add countdown label right under last prayer row (no extra gap)
         self.countdown_frame = tk.Frame(self.main_container)
-        self.countdown_frame.pack(fill=tk.X, padx=padding['medium'], pady=(padding['small'], 0))
+        self.countdown_frame.pack(fill=tk.X, padx=padding['medium'], pady=(0, padding['small']))
         
         self.countdown_label = self.create_label(
             self.countdown_frame,
