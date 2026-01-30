@@ -61,6 +61,24 @@ class LayoutManager:
         column = config.get('column')
         return row, column
     
+    def _reorder_column_by_row(self, frame_index: int) -> None:
+        """Reorder components in this column by config row (row 0 at top)."""
+        try:
+            column_components = []
+            for comp in self.components.values():
+                if comp.name == "System Logs":
+                    continue
+                row, col = self._get_component_position(comp)
+                if col is not None and col == frame_index and comp.frame and comp.frame.winfo_exists():
+                    column_components.append((row if row is not None else 999, comp))
+            column_components.sort(key=lambda x: x[0])
+            for _row, comp in column_components:
+                comp.frame.pack_forget()
+            for _row, comp in column_components:
+                self._place_component(comp, frame_index)
+        except Exception as e:
+            self.logger.debug(f"Reorder column {frame_index}: {e}")
+
     def _get_target_frame_index(self, component: DashboardComponent) -> int:
         """Determine which column frame a component should be placed in"""
         row, column = self._get_component_position(component)
@@ -96,7 +114,8 @@ class LayoutManager:
                 target_frame = self.frames[frame_index]
                 
                 component.initialize(target_frame)
-                
+                self._reorder_column_by_row(frame_index)
+
                 # Special handling for Friday Prayer Times - make it more compact
                 if component.name == "Friday Prayer Times":
                     # Set maximum width to prevent it from taking too much space

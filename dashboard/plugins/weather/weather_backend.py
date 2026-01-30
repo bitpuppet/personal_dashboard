@@ -5,6 +5,7 @@ import requests
 from datetime import datetime
 from dashboard.core.cache_helper import CacheHelper
 
+
 class WeatherBackend(ABC):
     """Base class for weather data providers"""
     
@@ -222,4 +223,4 @@ class NWSWeatherBackend(WeatherBackend):
             
         except Exception as e:
             self.logger.error(f"Error transforming forecast data: {e}", exc_info=True)
-            return None 
+            return None
