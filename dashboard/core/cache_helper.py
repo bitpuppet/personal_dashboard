@@ -28,22 +28,28 @@ class CacheHelper:
         return os.path.join(self.cache_dir, f"{url_hash}.json")
     
     def get_cached_content(self, url: str) -> Optional[str]:
-        """Get cached content if it exists and is from today"""
+        """Get cached content if it exists and is from today (by file mtime and stored date)."""
         try:
             cache_file = self._get_cache_file(url)
             if not os.path.exists(cache_file):
                 return None
-            
+
+            # Only use cache if file was modified today (ensures daily refresh)
+            mtime = os.path.getmtime(cache_file)
+            file_date = datetime.fromtimestamp(mtime).date()
+            if file_date != datetime.now().date():
+                return None
+
             with open(cache_file, 'r') as f:
                 cached = json.load(f)
-            
-            # Check if cache is from today
+
+            # Also check stored date for consistency
             cache_date = datetime.strptime(cached['date'], '%Y-%m-%d').date()
-            if cache_date == datetime.now().date():
-                return cached['content']
-            
-            return None
-            
+            if cache_date != datetime.now().date():
+                return None
+
+            return cached['content']
+
         except Exception as e:
             logger.error(f"Error reading cache: {e}")
             return None

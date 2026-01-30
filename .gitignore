@@ -58,6 +58,8 @@ dashboard.log
 .env.local
 .env.*.local
 .cache/*
+client_secret.json
+.config/*
 
 # Config files with sensitive data (optional - uncomment if needed)
 # config.yaml

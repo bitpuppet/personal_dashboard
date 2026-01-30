@@ -52,7 +52,7 @@ components:
     lon: -96.6135
     city: "Murphy, TX"
     update_interval: 3600
-    row: 1  # Second row
+    row: 1  # Second row (below Hourly Weather)
     column: 0  # First column
     # Optional: Customize fonts and colors
     # fonts:
@@ -65,6 +65,21 @@ components:
     #   text: "#ffffff"
     #   heading: "#ffffff"
     #   title: "#ffffff"
+
+  "Utilities Bill Due":
+    enable: true
+    headline: "Utilities Bill Due"
+    schedule_time: "07:00"  # Run daily at 7 AM (24-hour); or use update_interval: 86400
+    row: 2  # Third row (below Hourly Weather, 7-Day Forecast)
+    column: 0
+    headless: false  # set to false to show browser when fetching (per-backend override also supported)
+    update_interval: 86400000 # 1 day in milliseconds
+    backends:
+      - type: murphytx
+        utility_type: water
+        username_env: "${MURPHYTX_USERNAME}"
+        password_env: "${MURPHYTX_PASSWORD}"
+        headless: true  # override: show browser for this backend only
 
   "Prayer Times":
     enable: true
@@ -150,8 +165,19 @@ components:
     enable: true
     headline: "Scheduled Tasks"
     update_interval: 60000  # Update every second
-    row: 1  # Second row
+    row: 2  # Second row
     column: 1  # Second column
+
+  "Classroom Homework":
+    enable: false
+    headline: "Classroom Homework"
+    update_interval: 150  # seconds (task_manager); 150 = 2.5 minutes
+    row: 2
+    column: 0
+    backend: "scrape"
+    students:
+      - name: "Salwa"
+        profile_path: "~/.config/dashboard/classroom_browser_salwa"
 
 update_interval: 1000
 
