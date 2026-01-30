@@ -1,9 +1,11 @@
 from .base import BillDueInfo, UtilityBillDueBackend
+from .farmerselectric import FarmersElectricBackend
 from .murphytx import MurphyTXBackend
 
-__all__ = ["BillDueInfo", "UtilityBillDueBackend", "MurphyTXBackend"]
+__all__ = ["BillDueInfo", "UtilityBillDueBackend", "FarmersElectricBackend", "MurphyTXBackend"]
 
 _BACKENDS = {
+    "farmerselectric": FarmersElectricBackend,
     "murphytx": MurphyTXBackend,
 }
 

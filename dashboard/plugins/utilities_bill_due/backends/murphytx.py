@@ -79,6 +79,7 @@ def _bill_due_info_to_dict(item: BillDueInfo) -> dict:
         "last_payment_amount": item.last_payment_amount,
         "last_payment_date": item.last_payment_date.isoformat() if item.last_payment_date else None,
         "raw_status": item.raw_status,
+        "usage": getattr(item, "usage", None),
     }
 
 
@@ -102,6 +103,7 @@ def _bill_due_info_from_dict(d: dict) -> BillDueInfo:
         last_payment_amount=d.get("last_payment_amount"),
         last_payment_date=parse_date(d.get("last_payment_date")),
         raw_status=d.get("raw_status"),
+        usage=d.get("usage"),
     )
 
 
@@ -313,6 +315,7 @@ class MurphyTXBackend(UtilityBillDueBackend):
                         last_payment_amount=last_payment_amount,
                         last_payment_date=last_payment_date,
                         raw_status=f"balance={current_balance}" if current_balance is not None else None,
+                        usage=None,
                     )
                 )
                 self.logger.info(f"Murphy TX: finished, payment_due={payment_due}")

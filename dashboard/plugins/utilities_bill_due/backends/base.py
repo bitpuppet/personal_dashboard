@@ -21,8 +21,9 @@ BillDueInfo = namedtuple(
         "last_payment_amount",      # str or None
         "last_payment_date",        # date or None
         "raw_status",   # str or None for debugging
+        "usage",       # str or None, e.g. "568 kWh" (electric)
     ],
-    defaults=(None,) * 10,
+    defaults=(None,) * 11,
 )
 
 
