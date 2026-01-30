@@ -131,20 +131,21 @@ class WeeklyWeatherComponent(DashboardComponent):
             )
             day_label.pack(side=tk.LEFT, padx=padding['small'])
             
-            # Weather icon and description
+            # Weather icon and description (wraplength so long text wraps instead of truncating)
             center_frame = tk.Frame(day_frame)
             center_frame.pack(side=tk.LEFT, fill=tk.X, expand=True)
             
             icon_label = tk.Label(center_frame)
             icon_label.pack(side=tk.LEFT, padx=padding['small'])
             
+            wrap = max(120, self.scale_padding(30) * 5)  # responsive wrap so full text shows
             desc_label = self.create_label(
                 center_frame,
                 text="--",
                 font_size='tiny',
-                width=20
+                wraplength=wrap
             )
-            desc_label.pack(side=tk.LEFT)
+            desc_label.pack(side=tk.LEFT, fill=tk.X, expand=True)
             
             # Temperature
             temp_label = self.create_label(

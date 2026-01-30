@@ -223,7 +223,12 @@ class Config:
             # Format: ${VAR_NAME} or $VAR_NAME
             if data.startswith('${') and data.endswith('}'):
                 var_name = data[2:-1]
-                return os.environ.get(var_name, data)
+                data = os.environ.get(var_name, data)
+                if data in ("0", "false", "False", "NO", "no", "No"):
+                    data = False
+                elif data in ("1", "true", "True", "YES", "yes", "Yes"):
+                    data = True
+                return data
             elif data.startswith('$') and len(data) > 1:
                 var_name = data[1:]
                 return os.environ.get(var_name, data)
