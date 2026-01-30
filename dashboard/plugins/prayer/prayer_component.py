@@ -19,6 +19,7 @@ class PrayerTimesComponent(DashboardComponent):
         self.playing_prayer = None
         self.playing_labels = {}
         self.playing_icons = {}
+        self.should_refresh_screen = True
         
         # Schedule daily cache refresh at 10 AM
         self._schedule_daily_cache_refresh()
@@ -299,6 +300,11 @@ class PrayerTimesComponent(DashboardComponent):
         """Update component display with latest result"""
         if not self._latest_result:
             return
+        
+        if not self.should_refresh_screen:
+            return
+
+        self.logger.info(f"Updating Prayer Times component results")
             
         try:
             if isinstance(self._latest_result, dict) and 'error' in self._latest_result:
@@ -320,7 +326,9 @@ class PrayerTimesComponent(DashboardComponent):
                     self._clear_playing_state()
             
             # Update countdown
+            self.should_refresh_screen = True
             self._update_countdown()
+            self.should_refresh_screen = False
             
             self.error_label.config(text="")
             
@@ -428,8 +436,14 @@ class PrayerTimesComponent(DashboardComponent):
                 countdown_text = f"Next adhan: {next_prayer} in {hours} hour{'s' if hours != 1 else ''}"
                 if minutes > 0:
                     countdown_text += f" and {minutes} minute{'s' if minutes != 1 else ''}"
+                    self.should_refresh_screen = True
             else:
-                countdown_text = f"Next adhan: {next_prayer} in {minutes} minute{'s' if minutes != 1 else ''}"
+                if minutes > 0:
+                    countdown_text = f"Next adhan: {next_prayer} in {minutes} minute{'s' if minutes != 1 else ''}"
+                    self.should_refresh_screen = True
+                else:
+                    countdown_text = f"Next adhan: {next_prayer} in {total_seconds} second{'s' if total_seconds != 1 else ''}"
+                    self.should_refresh_screen = True
             
             countdown_text += f" ({next_time.strftime('%I:%M %p')})"
             self.countdown_label.config(text=countdown_text)

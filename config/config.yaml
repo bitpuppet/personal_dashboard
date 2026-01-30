@@ -1,9 +1,9 @@
 window:
-  fullscreen: true
+  fullscreen: false
   borderless: false
   width: 800
   height: 600
-  auto_size: true
+  auto_size: false
   margin_percent: 5
   background_color: "#000000"  # Background color (use hex color codes like "#ffffff" for white, "#000000" for black)
 
@@ -34,15 +34,15 @@ components:
     # System Logs always appears at the bottom, row/column ignored
 
   "Hourly Weather":
-    enable: false
+    enable: true
     headline: "Today's Weather Forecast"
     backend: "nws"  # Use NWS backend
     lat: 33.0185
     lon: -96.6135
     city: "Murphy, TX"
     update_interval: 3600
-    row: 1  # Second row
-    column: 1  # Second column
+    row: 0  # Second row
+    column: 0  # Second column
 
   "Weekly Weather":
     enable: true
@@ -119,8 +119,8 @@ components:
     enable: true
     headline: "Friday Prayer Times"
     update_interval: 3600  # Update hourly
-    row: 0  # First row
-    column: 0  # First column
+    row: 1  # First row
+    column: 1  # First column
     max_width: 400  # Maximum width in pixels to keep it compact
     # Optional: Customize fonts and colors
     # fonts:
@@ -149,7 +149,7 @@ components:
   "Task Manager":
     enable: true
     headline: "Scheduled Tasks"
-    update_interval: 1000  # Update every second
+    update_interval: 60000  # Update every second
     row: 1  # Second row
     column: 1  # Second column
 

@@ -23,6 +23,7 @@ class HourlyWeatherComponent(WeatherBase):
         self.backend = self._create_backend()
         self.cached_data = None
         self.last_fetch = None
+        self.should_refresh_screen = True
         
         # Schedule daily cache refresh at 10 AM
         self._schedule_daily_cache_refresh()
@@ -249,6 +250,8 @@ class HourlyWeatherComponent(WeatherBase):
                 self.logger.debug(f"Hourly forecast data: {data}")
                 self.last_fetch = datetime.now()  # Store fetch time separately
                 self.cached_data = data  # Store the actual weather data
+                self._latest_result = data  # Store the actual weather data
+                self.should_refresh_screen = True
                 return data
             else:
                 self.logger.info("Using cached weather data")
@@ -267,8 +270,12 @@ class HourlyWeatherComponent(WeatherBase):
         if "error" in self._latest_result:
             self.show_error(self._latest_result["error"])
             return
+        
+        if not self.should_refresh_screen:
+            return
             
         try:
+            self.logger.info(f"Updating Hourly component results")
             periods = self._latest_result["properties"]["periods"][:self.hours_to_show]  # Use configured number of hours
             
             for i, (period, frame) in enumerate(zip(periods, self.hour_frames)):
@@ -292,6 +299,8 @@ class HourlyWeatherComponent(WeatherBase):
             error_msg = f"Error parsing weather data: {str(e)}"
             self.logger.error(error_msg)
             self.show_error(error_msg)
+        finally:
+            self.should_refresh_screen = False
     
     def destroy(self) -> None:
         """Clean up resources"""

@@ -222,7 +222,7 @@ class WeatherComponent(DashboardComponent):
         if not self._latest_result:
             return
             
-        self.logger.debug(f"Updating display with result: {self._latest_result}")
+        self.logger.info(f"Updating display with result: {self._latest_result}")
         
         if "error" in self._latest_result:
             self.show_error(self._latest_result["error"])
