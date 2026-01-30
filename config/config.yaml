@@ -100,7 +100,7 @@ components:
             amount: 50
           - name: "Internet"
             source: "Frontier"
-            due_date: "2025-02-19"
+            due_date: "on every 26th"
             status: "Autopay"
             amount: 29.99
           - name: "Salt Refill"
