@@ -90,6 +90,29 @@ components:
         username_env: "${COSERV_USERNAME}"
         password_env: "${COSERV_PASSWORD}"
         headless: true
+      - type: manual
+        entries:
+          - name: "Internet"
+            source: "Spectrum"
+            due_date: "on every 14"
+            status: "Autopay"
+            amount: 50
+          - name: "Internet"
+            source: "Frontier"
+            due_date: "2025-02-19"
+            status: "Autopay"
+            amount: 29.99
+          - name: "Salt Refill"
+            source: "Lowes"
+            due_date: "2026-03-01"
+            status: "Due"
+            amount: 60
+          - name: "Mobile Phone"
+            source: "T-Mobile"
+            due_date: "on every 29th"
+            status: "Autopay"
+            amount: 107
+          
 
   "Prayer Times":
     enable: true
