@@ -85,6 +85,11 @@ components:
         username_env: "${FARMERSELECTRIC_USERNAME}"
         password_env: "${FARMERSELECTRIC_PASSWORD}"
         headless: true
+      - type: coserv
+        utility_type: gas
+        username_env: "${COSERV_USERNAME}"
+        password_env: "${COSERV_PASSWORD}"
+        headless: true
 
   "Prayer Times":
     enable: true
@@ -194,4 +199,4 @@ taskbar:
   show_volume_control: true  # Set to true to show volume control in taskbar 
 
 cache:
-  directory: "~/.personal_dashboard/cache"  # Base cache directory 
+  directory: ".cache"  # Base cache directory 
