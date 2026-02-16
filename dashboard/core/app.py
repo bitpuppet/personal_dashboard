@@ -42,7 +42,11 @@ class DashboardApp:
         bg_color = self.config.data.get("window", {}).get("background_color")
         if bg_color:
             self.main_container.configure(bg=bg_color)
-        
+
+        # Initialize database (before managers so tables exist)
+        from .db import init_db
+        init_db(self.config.data)
+
         # Initialize managers and core services
         self.plugin_manager = PluginManager()
         self.task_manager = TaskManager()
@@ -72,7 +76,18 @@ class DashboardApp:
         # Load components
         self.components = []
         self.initialize_components()
-        
+
+        # Sync component registry to DB (config remains source of truth; DB holds current state)
+        from .models import sync_components_from_config
+        sync_components_from_config(self.config.data)
+
+        # Start API server if enabled (api.enabled in config)
+        try:
+            from dashboard.api import run_api_server
+            run_api_server(self)
+        except Exception as e:
+            self.logger.warning(f"API server not started: {e}")
+
         # Setup hot reload (watches config and code files)
         self.hot_reload_manager = HotReloadManager(
             app=self,

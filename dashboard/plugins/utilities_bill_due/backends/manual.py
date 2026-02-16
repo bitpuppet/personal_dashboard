@@ -83,7 +83,7 @@ class ManualBackend(UtilityBillDueBackend):
         entries = self.config.get("entries")
         if not isinstance(entries, list):
             if entries is not None:
-                self.logger.warning("Manual backend: 'entries' must be a list, got %s", type(entries).__name__)
+                self.logger.warning(f"Manual backend: 'entries' must be a list, got {type(entries).__name__}")
             return []
 
         results: List[BillDueInfo] = []
@@ -91,13 +91,13 @@ class ManualBackend(UtilityBillDueBackend):
 
         for i, entry in enumerate(entries):
             if not isinstance(entry, dict):
-                self.logger.warning("Manual backend: entry[%s] is not a dict, skipping", i)
+                self.logger.warning(f"Manual backend: entry[{i}] is not a dict, skipping")
                 continue
 
             name = entry.get("name")
             source = entry.get("source")
             if not name and not source:
-                self.logger.warning("Manual backend: entry[%s] missing name and source, skipping", i)
+                self.logger.warning(f"Manual backend: entry[{i}] missing name and source, skipping")
                 continue
 
             name = (name or "").strip() or None
@@ -109,7 +109,7 @@ class ManualBackend(UtilityBillDueBackend):
 
             due_date = _parse_due_date(entry.get("due_date"))
             if due_date is None and entry.get("due_date") is not None:
-                self.logger.debug("Manual backend: entry[%s] invalid due_date %r", i, entry.get("due_date"))
+                self.logger.debug(f"Manual backend: entry[{i}] invalid due_date {entry.get('due_date')!r}")
 
             amount_raw = entry.get("amount")
             amount_due: Optional[str] = None

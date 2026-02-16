@@ -1,33 +1,58 @@
 from .weather_base import WeatherBase
 import tkinter as tk
 from datetime import datetime, timedelta
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 import requests
+from dashboard.core.component_base import _make_json_serializable
 from PIL import Image, ImageTk
 from io import BytesIO
 import threading
 from queue import Queue
 from .icon_manager import IconManager
 from .weather_backend import WeatherBackend, OpenWeatherMapBackend, NWSWeatherBackend
+from .service import get_latest_weather
+from .task import WeatherTask
+
 
 class HourlyWeatherComponent(WeatherBase):
     name = "Hourly Weather"
-    
+
     def __init__(self, app, config: Dict[str, Any]):
         super().__init__(app, config)
-        self.hours_to_show = self.config.get("hours_to_show", 7)  # Default to 7 hours if not specified
-        self.icon_cache = {}  # Cache for downloaded icons
+        self.hours_to_show = self.config.get("hours_to_show", 7)
+        self.icon_cache = {}
         self.icon_queue = Queue()
         self._start_icon_thread()
         self.icon_manager = IconManager()
         self.backend = self._create_backend()
-        self.cached_data = None
+        self.cached_data = get_latest_weather(self.name)
+        self._latest_result = self.cached_data
         self.last_fetch = None
         self.should_refresh_screen = True
-        
-        # Schedule daily cache refresh at 10 AM
-        self._schedule_daily_cache_refresh()
+
+        self.task = WeatherTask(self.name, config)
+        self.task.ensure_scheduled()
+        self.app.task_manager.register_task(self.name, self.task.run)
+        self.app.task_manager.schedule_registered_task(
+            self.name, config, self.app.config.data
+        )
         self.logger.debug(f"HourlyWeatherComponent initialized with config: {config}")
+
+    def get_api_data(self) -> Optional[Dict[str, Any]]:
+        """Expose cached hourly weather data for the API (JSON-serializable)."""
+        data = self.cached_data or getattr(self, "_latest_result", None)
+        if data is None:
+            return None
+        return _make_json_serializable(data)
+
+    def handle_background_result(self, result: Any) -> None:
+        """Called when task finishes; result is hourly forecast JSON or error dict."""
+        if result is None:
+            return
+        self.cached_data = result
+        self._latest_result = result
+        self.should_refresh_screen = True
+        self.app.root.after(0, self.update)
     
     def _start_icon_thread(self):
         """Start background thread for icon downloads"""
@@ -169,54 +194,11 @@ class HourlyWeatherComponent(WeatherBase):
         )
         self.error_label.pack(pady=padding['small'])
         
-        # Initialize weather data
         if not self.validate_coordinates():
             return
-            
-        # Get points data and schedule updates
-        self.points_data = self.fetch_points_data()
-        if self.points_data:
-            self._latest_result = self.fetch_weather()
-            self.update()
-            
-            update_interval = self.config.get("update_interval", 600)
-            self.logger.info(f"Hourly Weather update interval: {update_interval}")
-            self.app.task_manager.schedule_task(self.name, self.fetch_weather, update_interval)
-    
-    def fetch_weather(self, force_fetch=False):
-        """Fetch hourly forecast data"""
-        if not self.points_data:
-            return {"error": "No points data available"}
-            
-        try:
-            headers = {
-                'User-Agent': '(Personal Dashboard, your@email.com)',
-                'Accept': 'application/geo+json'
-            }
-            
-            hourly_url = self.points_data["properties"]["forecastHourly"]
-            self.logger.info(f"Fetching hourly forecast from: {hourly_url}")
-            
-            if force_fetch or not self.cached_data or datetime.now() - self.last_fetch > timedelta(minutes=5):
-                response = requests.get(hourly_url, headers=headers)
-                response.raise_for_status()
-                
-                data = response.json()
-                self.logger.debug(f"Hourly forecast data: {data}")
-                self.last_fetch = datetime.now()  # Store fetch time separately
-                self.cached_data = data  # Store the actual weather data
-                self._latest_result = data  # Store the actual weather data
-                self.should_refresh_screen = True
-                return data
-            else:
-                self.logger.info("Using cached weather data")
-                return self.cached_data
-            
-        except Exception as e:
-            error_msg = f"Error fetching hourly forecast: {str(e)}"
-            self.logger.error(error_msg)
-            return {"error": error_msg}
-    
+
+        self.update()
+
     def update(self) -> None:
         """Update the display with latest weather data"""
         if not self._latest_result:
@@ -263,61 +245,17 @@ class HourlyWeatherComponent(WeatherBase):
         self.icon_cache.clear()
         super().destroy()
     
-    def _schedule_daily_cache_refresh(self) -> None:
-        """Schedule daily cache refresh at 10 AM"""
-        try:
-            now = datetime.now()
-            target = now.replace(hour=10, minute=0, second=0, microsecond=0)
-            
-            # If it's past 10 AM, schedule for tomorrow
-            if now >= target:
-                target += timedelta(days=1)
-            
-            delay = int((target - now).total_seconds())
-            
-            # Schedule the task
-            task_name = f"{self.name}_daily_cache_refresh"
-            
-            # Cancel existing task if any
-            if task_name in self.app.task_manager.tasks:
-                self.app.task_manager.tasks[task_name].cancel()
-            
-            # Schedule new task
-            self.app.task_manager.schedule_task(
-                task_name,
-                lambda: self.fetch_weather(force_fetch=True),
-                delay,
-                one_time=False  # Make it recurring
-            )
-            
-            self.logger.info(f"Scheduled daily weather cache refresh for {target.strftime('%H:%M')}")
-            
-        except Exception as e:
-            self.logger.error(f"Error scheduling daily cache refresh: {e}")
-    
     def _manual_refresh(self) -> None:
-        """Handle manual refresh button click"""
+        """Trigger task run in background; UI updates via handle_background_result."""
         try:
-            task_name = f"{self.name}_manual_refresh"
-            
-            # Cancel existing task if any
-            if task_name in self.app.task_manager.tasks:
-                self.app.task_manager.tasks[task_name].cancel()
-            
-            # Show refreshing status
             for frame in self.hour_frames:
-                frame['temp'].config(text="...")
-            
-            # Schedule refresh
-            self.app.task_manager.schedule_task(
-                task_name,
-                lambda: self.fetch_weather(force_fetch=True),
-                0,
-                one_time=True
-            )
-            
+                frame["temp"].config(text="...")
+            threading.Thread(
+                target=lambda: self.app.task_manager.run_task_now(self.name),
+                daemon=True,
+            ).start()
         except Exception as e:
-            self.logger.error(f"Error in manual refresh: {e}")
+            self.logger.error(f"Error starting manual refresh: {e}")
     
     def _create_tooltip(self, widget, text):
         """Create a tooltip for a widget"""
