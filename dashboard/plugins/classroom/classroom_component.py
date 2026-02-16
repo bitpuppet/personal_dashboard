@@ -1,29 +1,47 @@
 """
-Classroom Homework component: fetches due homework from Google Classroom
-for multiple student accounts and displays in a table.
+Classroom Homework component: displays assignments from DB.
+Data is filled by the registered task; UI reads via service.
 """
 import os
+import threading
 import tkinter as tk
 from tkinter import ttk
-from dashboard.core.component_base import DashboardComponent
-from typing import Dict, Any, List, Optional
+from dashboard.core.component_base import DashboardComponent, _make_json_serializable
+from typing import Dict, Any, List, Optional, Union
 from datetime import datetime
 from .classroom_client import ClassroomClient
 from .classroom_scraper import ClassroomScraper
-from typing import Union
+from .service import get_latest_assignments
+from .task import ClassroomTask
 
-# Type for either API client or scraper (same interface: get_due_assignments)
 ClassroomFetcher = Union[ClassroomClient, ClassroomScraper]
+
 
 class ClassroomHomeworkComponent(DashboardComponent):
     name = "Classroom Homework"
 
     def __init__(self, app, config: Dict[str, Any]):
         super().__init__(app, config)
-        self.cached_data: Optional[List[Dict[str, Any]]] = None
+        self.cached_data: Optional[List[Dict[str, Any]]] = get_latest_assignments(self.name) or None
         self.cached_error: Optional[str] = None
         self._fetchers: List[ClassroomFetcher] = []
         self._row_widgets: List[tk.Widget] = []
+
+        self.task = ClassroomTask(self.name, config)
+        self.task.ensure_scheduled()
+        self.app.task_manager.register_task(self.name, self.task.run)
+        self.app.task_manager.schedule_registered_task(
+            self.name, config, self.app.config.data
+        )
+
+    def get_api_data(self) -> Optional[Dict[str, Any]]:
+        """Expose assignments for the API (JSON-serializable)."""
+        if self.cached_data is not None:
+            return _make_json_serializable({"assignments": self.cached_data})
+        data = get_latest_assignments(self.name)
+        if data:
+            return _make_json_serializable({"assignments": data})
+        return None
 
     def _get_client_secret_path(self) -> str:
         path = self.config.get("client_secret_path") or os.environ.get(
@@ -137,14 +155,7 @@ class ClassroomHomeworkComponent(DashboardComponent):
         )
         self.error_label.pack(pady=padding["small"])
 
-        self._fetch_homework()
-        update_interval = self.config.get("update_interval", 900)
-        self.app.task_manager.schedule_task(
-            f"{self.name}_update",
-            self._fetch_homework,
-            update_interval,
-            one_time=False,
-        )
+        self.update()
 
     def _create_tooltip(self, widget: tk.Widget, text: str) -> None:
         def show_tooltip(event):
@@ -172,54 +183,11 @@ class ClassroomHomeworkComponent(DashboardComponent):
 
         widget.bind("<Enter>", show_tooltip)
 
-    def _fetch_homework(self) -> None:
-        """Run in background: fetch for all students, then update UI on main thread."""
+    def handle_background_result(self, result: Any) -> None:
+        """Called on main thread when task finishes; redraw from cached result."""
         self.cached_error = None
-        backend = (self.config.get("backend") or "api").lower()
-        self.logger.info(f"Classroom Homework: starting fetch (backend={backend})")
-        if backend == "api":
-            client_secret = self._get_client_secret_path()
-            if not client_secret or not os.path.isfile(client_secret):
-                self.cached_error = "Set GOOGLE_CLASSROOM_CLIENT_SECRET or client_secret_path"
-                if self.frame and self.frame.winfo_exists():
-                    self.frame.after(0, self.update)
-                return
-
-        fetchers = self._build_fetchers()
-        self.logger.info(f"Classroom Homework: built {len(fetchers)} fetcher(s)")
-        if not fetchers:
-            if backend == "scrape":
-                self.cached_error = "Add at least one student (name, profile_path) in config"
-            else:
-                self.cached_error = "Add at least one student (name, token_file) in config"
-            if self.frame and self.frame.winfo_exists():
-                self.frame.after(0, self.update)
-            return
-
-        all_assignments: List[Dict[str, Any]] = []
-        errors: List[str] = []
-        for fetcher in fetchers:
-            try:
-                self.logger.info(f"Classroom Homework: fetching for {fetcher.student_name}")
-                assignments = fetcher.get_due_assignments(
-                    include_overdue=True,
-                    fetch_submission_status=True,
-                )
-                all_assignments.extend(assignments)
-            except Exception as e:
-                self.logger.exception(f"Fetch failed for {fetcher.student_name}")
-                errors.append(f"{fetcher.student_name}: {e}")
-
-        if errors:
-            self.cached_error = "; ".join(errors[:2])
-            if len(errors) > 2:
-                self.cached_error += "..."
-
-        all_assignments.sort(key=lambda a: a.get("due_datetime") or datetime.max)
-        self.cached_data = all_assignments
-        self.logger.info(f"Classroom Homework: fetch done, {len(all_assignments)} assignment(s)")
-        if self.frame and self.frame.winfo_exists():
-            self.frame.after(0, self.update)
+        self.cached_data = result if result is not None else []
+        self.update()
 
     def update(self) -> None:
         """Redraw table from cached_data (main thread)."""
@@ -269,12 +237,10 @@ class ClassroomHomeworkComponent(DashboardComponent):
                 self._row_widgets.append(lbl)
 
     def _manual_refresh(self) -> None:
-        task_name = f"{self.name}_manual_refresh"
-        if task_name in self.app.task_manager.tasks:
-            self.app.task_manager.tasks[task_name].cancel()
-        self.app.task_manager.schedule_task(
-            task_name,
-            self._fetch_homework,
-            0,
-            one_time=True,
-        )
+        """Run registered task now in background; result updates via handle_background_result."""
+        def run():
+            self.app.task_manager.run_task_now(
+                self.name, self.config, self.app.config.data
+            )
+        threading.Thread(target=run, daemon=True).start()
+        self.logger.info("Classroom Homework: manual refresh started")

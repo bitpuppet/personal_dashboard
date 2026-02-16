@@ -154,6 +154,11 @@ class Config:
                     "columns": 2,
                     "padding": 10
                 },
+                "api": {
+                    "enabled": True,
+                    "host": "127.0.0.1",
+                    "port": 8765,
+                },
                 "components": {
                     "System Logs": {
                         "enable": True,

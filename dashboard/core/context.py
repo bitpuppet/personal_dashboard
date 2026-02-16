@@ -2,6 +2,7 @@ from contextvars import ContextVar
 from typing import Optional
 from contextlib import contextmanager
 
+
 class DashboardContext:
     """Context-based storage for dashboard app"""
     _app_context: ContextVar = ContextVar('dashboard_app', default=None)

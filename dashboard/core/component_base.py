@@ -1,7 +1,19 @@
 from abc import ABC, abstractmethod
 import tkinter as tk
+from datetime import date, datetime, time
 from typing import Optional, Dict, Any
 import logging
+
+
+def _make_json_serializable(obj: Any) -> Any:
+    """Convert datetime/date/time and nested structures for JSON. Non-dict/list/date-like pass through."""
+    if isinstance(obj, (datetime, date, time)):
+        return obj.isoformat()
+    if isinstance(obj, dict):
+        return {k: _make_json_serializable(v) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple)):
+        return [_make_json_serializable(x) for x in obj]
+    return obj
 
 # Base window dimensions for responsive scaling
 BASE_WINDOW_WIDTH = 800
@@ -200,7 +212,11 @@ class DashboardComponent(ABC):
         """Get responsive padding value by size name"""
         padding = self.get_responsive_padding()
         return padding.get(size, padding['medium'])
-    
+
+    def get_api_data(self) -> Optional[Dict[str, Any]]:
+        """Override to expose component data for the API. Return serializable dict or None."""
+        return None
+
     @abstractmethod
     def update(self) -> None:
         """Update component display with latest result"""

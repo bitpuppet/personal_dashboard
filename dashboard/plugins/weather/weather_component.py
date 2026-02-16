@@ -1,58 +1,50 @@
+import threading
 import tkinter as tk
 from tkinter import ttk
 import requests
 import logging
-from dashboard.core.component_base import DashboardComponent
-from typing import Dict, Any
+from dashboard.core.component_base import DashboardComponent, _make_json_serializable
+from typing import Dict, Any, Optional
 from datetime import datetime, timedelta
 from .icon_manager import IconManager
 from .weather_backend import WeatherBackend, OpenWeatherMapBackend
+from .service import get_latest_weather
+from .task import WeatherTask
+
 
 class WeatherComponent(DashboardComponent):
     name = "Weather"
-    
+
     def __init__(self, app, config: Dict[str, Any]):
         super().__init__(app, config)
         self.icon_manager = IconManager()
         self.logger.debug(f"WeatherComponent initialized with config: {config}")
         self.backend = self._create_backend()
-        self.cached_data = None
-        
-        # Schedule daily cache refresh at 10 AM
-        self._schedule_daily_cache_refresh()
-    
-    def _schedule_daily_cache_refresh(self) -> None:
-        """Schedule daily cache refresh at 10 AM"""
-        try:
-            now = datetime.now()
-            target = now.replace(hour=10, minute=0, second=0, microsecond=0)
-            
-            # If it's past 10 AM, schedule for tomorrow
-            if now >= target:
-                target += timedelta(days=1)
-            
-            delay = int((target - now).total_seconds())
-            
-            # Schedule the task
-            task_name = f"{self.name}_daily_cache_refresh"
-            
-            # Cancel existing task if any
-            if task_name in self.app.task_manager.tasks:
-                self.app.task_manager.tasks[task_name].cancel()
-            
-            # Schedule new task
-            self.app.task_manager.schedule_task(
-                task_name,
-                lambda: self.fetch_weather(force_fetch=True),
-                delay,
-                one_time=False  # Make it recurring
-            )
-            
-            self.logger.info(f"Scheduled daily weather cache refresh for {target.strftime('%H:%M')}")
-            
-        except Exception as e:
-            self.logger.error(f"Error scheduling daily cache refresh: {e}")
-    
+        self.cached_data = get_latest_weather(self.name)
+        self._latest_result = self.cached_data
+
+        self.task = WeatherTask(self.name, config)
+        self.task.ensure_scheduled()
+        self.app.task_manager.register_task(self.name, self.task.run)
+        self.app.task_manager.schedule_registered_task(
+            self.name, config, self.app.config.data
+        )
+
+    def get_api_data(self) -> Optional[Dict[str, Any]]:
+        """Expose cached weather data for the API (JSON-serializable)."""
+        data = self.cached_data or getattr(self, "_latest_result", None)
+        if data is None:
+            return None
+        return _make_json_serializable(data)
+
+    def handle_background_result(self, result: Any) -> None:
+        """Called when task finishes; result is weather dict or error."""
+        if result is None:
+            return
+        self.cached_data = result
+        self._latest_result = result
+        self.frame.after(0, self.update)
+
     def initialize(self, parent: tk.Frame) -> None:
         super().initialize(parent)
         
@@ -200,14 +192,7 @@ class WeatherComponent(DashboardComponent):
             self.show_error("Latitude must be between -90 and 90, longitude between -180 and 180")
             return
         
-        # Schedule initial fetch
-        self._latest_result = self.fetch_weather()
         self.update()
-        
-        # Schedule periodic updates
-        update_interval = self.config.get("update_interval", 600)
-        self.logger.info(f"Weather Component update interval: {update_interval}")
-        self.app.task_manager.schedule_task("Weather", self.fetch_weather, update_interval)
     
     def celsius_to_fahrenheit(self, celsius):
         """Convert Celsius to Fahrenheit"""
@@ -268,16 +253,6 @@ class WeatherComponent(DashboardComponent):
         """Clear error message from the UI"""
         self.error_label.config(text="")
     
-    def fetch_weather(self, force_fetch: bool = False) -> None:
-        """Fetch weather data from backend"""
-        try:
-            weather_data = self.backend.get_weather(force_fetch)
-            if weather_data:
-                self.cached_data = weather_data
-                self.frame.after(0, self.update)  # Update UI on main thread
-        except Exception as e:
-            self.logger.error(f"Error fetching weather: {e}")
-    
     def destroy(self) -> None:
         """Clean up resources"""
         try:
@@ -288,30 +263,14 @@ class WeatherComponent(DashboardComponent):
             self.logger.error(f"Error destroying {self.name}: {e}")
     
     def _manual_refresh(self) -> None:
-        """Handle manual refresh button click"""
+        """Trigger task run in background; UI updates via handle_background_result."""
         try:
-            # Schedule the refresh task
-            task_name = f"{self.name}_manual_refresh"
-            
-            # Cancel any existing refresh task
-            if task_name in self.app.task_manager.tasks:
-                self.app.task_manager.tasks[task_name].cancel()
-            
-            # Show refreshing status
-            # Update your weather display widgets to show "Refreshing..."
-            
-            # Schedule the refresh task
-            self.app.task_manager.schedule_task(
-                task_name,
-                lambda: self.fetch_weather(force_fetch=True),
-                0,  # Run immediately
-                one_time=True
-            )
-            
-            self.logger.info("Manual weather refresh started")
-            
+            threading.Thread(
+                target=lambda: self.app.task_manager.run_task_now(self.name),
+                daemon=True,
+            ).start()
         except Exception as e:
-            self.logger.error(f"Error scheduling weather refresh: {e}")
+            self.logger.error(f"Error starting weather refresh: {e}")
     
     def _create_backend(self) -> WeatherBackend:
         """Create weather backend based on configuration"""

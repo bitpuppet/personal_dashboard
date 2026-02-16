@@ -7,6 +7,16 @@ window:
   margin_percent: 5
   background_color: "#000000"  # Background color (use hex color codes like "#ffffff" for white, "#000000" for black)
 
+# Optional: database path for component registry and component data (default: ~/.personal_dashboard/dashboard.db)
+# database:
+#   path: "~/.personal_dashboard/dashboard.db"
+
+# Optional: HTTP API for components, tasks, and component data
+api:
+  enabled: true
+  host: "127.0.0.1"
+  port: 8765
+
 layout:
   columns: 2
   padding: 10
