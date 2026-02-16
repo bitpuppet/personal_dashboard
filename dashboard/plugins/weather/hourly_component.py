@@ -1,6 +1,6 @@
 from .weather_base import WeatherBase
 import tkinter as tk
-from datetime import datetime, timedelta
+from datetime import datetime, timezone
 from typing import Dict, Any, List, Optional
 import requests
 from dashboard.core.component_base import _make_json_serializable
@@ -25,9 +25,6 @@ class HourlyWeatherComponent(WeatherBase):
         self._start_icon_thread()
         self.icon_manager = IconManager()
         self.backend = self._create_backend()
-        self.cached_data = get_latest_weather(self.name)
-        self._latest_result = self.cached_data
-        self.last_fetch = None
         self.should_refresh_screen = True
 
         self.task = WeatherTask(self.name, config)
@@ -39,18 +36,16 @@ class HourlyWeatherComponent(WeatherBase):
         self.logger.debug(f"HourlyWeatherComponent initialized with config: {config}")
 
     def get_api_data(self) -> Optional[Dict[str, Any]]:
-        """Expose cached hourly weather data for the API (JSON-serializable)."""
-        data = self.cached_data or getattr(self, "_latest_result", None)
+        """Expose hourly weather data from DB for the API (JSON-serializable)."""
+        data = get_latest_weather(self.name)
         if data is None:
             return None
         return _make_json_serializable(data)
 
     def handle_background_result(self, result: Any) -> None:
-        """Called when task finishes; result is hourly forecast JSON or error dict."""
+        """Called when task finishes; task already saved to DB, refresh display from DB."""
         if result is None:
             return
-        self.cached_data = result
-        self._latest_result = result
         self.should_refresh_screen = True
         self.app.root.after(0, self.update)
     
@@ -199,22 +194,46 @@ class HourlyWeatherComponent(WeatherBase):
 
         self.update()
 
+    def _get_hourly_periods_to_show(self, data: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """Return list of periods to display: 1 hour ago, current hour, and next 5 (hours_to_show total)."""
+        try:
+            all_periods = data.get("properties", {}).get("periods") or []
+            if not all_periods:
+                return []
+            n = self.hours_to_show
+            now = datetime.now(timezone.utc)
+            # Find index of period that contains "now" (last period with startTime <= now, or first if all future)
+            current_index = 0
+            for i, p in enumerate(all_periods):
+                start = datetime.fromisoformat(p["startTime"].replace("Z", "+00:00"))
+                if start.tzinfo is None:
+                    start = start.replace(tzinfo=timezone.utc)
+                if start <= now:
+                    current_index = i
+                else:
+                    break
+            # From (current - 1) to (current + 5) inclusive = 7 hours
+            start_index = max(0, current_index - 1)
+            end_index = min(len(all_periods), start_index + n)
+            return all_periods[start_index:end_index]
+        except (KeyError, TypeError, ValueError):
+            return []
+
     def update(self) -> None:
-        """Update the display with latest weather data"""
-        if not self._latest_result:
-            return
-            
-        if "error" in self._latest_result:
-            self.show_error(self._latest_result["error"])
-            return
-        
+        """Update the display with latest weather data from DB."""
         if not self.should_refresh_screen:
             return
-            
+        data = get_latest_weather(self.name)
+        if not data:
+            return
+        if "error" in data:
+            self.show_error(data["error"])
+            self.should_refresh_screen = False
+            return
         try:
             self.logger.info(f"Updating Hourly component results")
-            periods = self._latest_result["properties"]["periods"][:self.hours_to_show]  # Use configured number of hours
-            
+            periods = self._get_hourly_periods_to_show(data)
+
             for i, (period, frame) in enumerate(zip(periods, self.hour_frames)):
                 time = datetime.fromisoformat(period["startTime"]).strftime("%I%p")
                 temp = int(round(period["temperature"]))  # Round temperature to integer
