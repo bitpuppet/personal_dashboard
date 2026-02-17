@@ -1,6 +1,6 @@
 from .weather_base import WeatherBase
 import tkinter as tk
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import Dict, Any, List, Optional
 import requests
 from dashboard.core.component_base import _make_json_serializable
@@ -33,6 +33,7 @@ class HourlyWeatherComponent(WeatherBase):
         self.app.task_manager.schedule_registered_task(
             self.name, config, self.app.config.data
         )
+        self._hourly_tick_after_id = None  # for canceling hourly display refresh
         self.logger.debug(f"HourlyWeatherComponent initialized with config: {config}")
 
     def get_api_data(self) -> Optional[Dict[str, Any]]:
@@ -193,6 +194,39 @@ class HourlyWeatherComponent(WeatherBase):
             return
 
         self.update()
+        self._schedule_hourly_display_refresh()
+
+    def _schedule_hourly_display_refresh(self) -> None:
+        """Schedule next display refresh at the start of the next clock hour, then every hour."""
+        if self._hourly_tick_after_id is not None:
+            try:
+                self.app.root.after_cancel(self._hourly_tick_after_id)
+            except Exception:
+                pass
+            self._hourly_tick_after_id = None
+        now = datetime.now(timezone.utc)
+        # Next full hour (UTC)
+        next_hour = (now + timedelta(hours=1)).replace(minute=0, second=0, microsecond=0)
+        delay_sec = (next_hour - now).total_seconds()
+        delay_ms = max(1000, int(delay_sec * 1000))  # at least 1s to avoid tight loop
+        self._hourly_tick_after_id = self.app.root.after(
+            delay_ms,
+            self._hourly_display_tick,
+        )
+
+    def _hourly_display_tick(self) -> None:
+        """Refresh the 7-hour window so it shows last hour, current hour, next 5 (called every clock hour)."""
+        self._hourly_tick_after_id = None
+        try:
+            self.should_refresh_screen = True
+            self.update()
+        finally:
+            # Schedule next run in 1 hour
+            if getattr(self, "app", None) and getattr(self.app, "root", None):
+                self._hourly_tick_after_id = self.app.root.after(
+                    3600000,  # 1 hour in ms
+                    self._hourly_display_tick,
+                )
 
     def _get_hourly_periods_to_show(self, data: Dict[str, Any]) -> List[Dict[str, Any]]:
         """Return list of periods to display: 1 hour ago, current hour, and next 5 (hours_to_show total)."""
@@ -261,6 +295,12 @@ class HourlyWeatherComponent(WeatherBase):
     
     def destroy(self) -> None:
         """Clean up resources"""
+        if getattr(self, "_hourly_tick_after_id", None) is not None:
+            try:
+                self.app.root.after_cancel(self._hourly_tick_after_id)
+            except Exception:
+                pass
+            self._hourly_tick_after_id = None
         self.icon_cache.clear()
         super().destroy()
     
@@ -270,7 +310,9 @@ class HourlyWeatherComponent(WeatherBase):
             for frame in self.hour_frames:
                 frame["temp"].config(text="...")
             threading.Thread(
-                target=lambda: self.app.task_manager.run_task_now(self.name),
+                target=lambda: self.app.task_manager.run_task_now(
+                    self.name, self.config, self.app.config.data
+                ),
                 daemon=True,
             ).start()
         except Exception as e:
