@@ -249,7 +249,9 @@ class FridayPrayerComponent(DashboardComponent):
                 for key in ["juma1", "juma2", "juma3"]:
                     labels[key].config(text="Refreshing...")
             threading.Thread(
-                target=lambda: self.app.task_manager.run_task_now(self.name),
+                target=lambda: self.app.task_manager.run_task_now(
+                    self.name, self.config, self.app.config.data
+                ),
                 daemon=True,
             ).start()
         except Exception as e:

@@ -275,7 +275,9 @@ class WeeklyWeatherComponent(DashboardComponent):
             for day_frame in self.forecast_days:
                 day_frame["temp"].config(text="...")
             threading.Thread(
-                target=lambda: self.app.task_manager.run_task_now(self.name),
+                target=lambda: self.app.task_manager.run_task_now(
+                    self.name, self.config, self.app.config.data
+                ),
                 daemon=True,
             ).start()
         except Exception as e:
