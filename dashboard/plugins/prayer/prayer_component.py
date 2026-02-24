@@ -333,11 +333,10 @@ class PrayerTimesComponent(DashboardComponent):
                     time_text = time.strftime("%I:%M %p")
                     self.prayer_labels[prayer].config(text=time_text)
             
-            # Check for adhan if enabled
+            # Sync UI with adhan playback state only; playback is triggered by timers in schedule_adhan
             if self.enable_adhan:
-                playing = self.adhan_manager.check_prayer_times(self._latest_result)
-                if playing:
-                    self._show_playing_state(playing)
+                if self.adhan_manager.is_playing and self.playing_prayer:
+                    self._show_playing_state(self.playing_prayer)
                 elif not self.adhan_manager.is_playing and self.playing_prayer:
                     self._clear_playing_state()
             
@@ -528,8 +527,6 @@ class PrayerTimesComponent(DashboardComponent):
             if not self.enable_adhan:
                 self.logger.info(f"Adhan is disabled, skipping {prayer_name}")
                 return
-                
-            self.logger.info(f"Playing adhan for {prayer_name}")
             
             # Get prayer-specific URL if configured, otherwise use default
             prayer_config = self.config.get('adhan', {}).get('prayer_specific', {}).get(prayer_name, {})
