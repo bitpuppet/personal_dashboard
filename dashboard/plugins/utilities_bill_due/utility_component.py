@@ -1,15 +1,16 @@
 """
-Utilities Bill Due component: fetches bill due status from multiple backends
-(Water, Gas, Electric) and displays Utility, Source, Due Date, Status (no amount on UI).
+Utilities Bill Due component: displays bill due status from DB.
+Data is filled by the registered task; UI reads via service.
 """
-import os
+import threading
 import tkinter as tk
 from tkinter import ttk
-from datetime import date, datetime, timedelta
-from typing import Dict, Any, List, Optional
+from typing import Any, Dict, List, Optional
 
 from dashboard.core.component_base import DashboardComponent
-from .backends import BillDueInfo, get_backend
+from .backends import BillDueInfo
+from .service import get_latest_bills
+from .task import UtilitiesBillDueTask
 
 
 class UtilitiesBillDueComponent(DashboardComponent):
@@ -17,73 +18,40 @@ class UtilitiesBillDueComponent(DashboardComponent):
 
     def __init__(self, app, config: Dict[str, Any]):
         super().__init__(app, config)
-        self.cached_data: Optional[List[BillDueInfo]] = None
-        self.cached_error: Optional[str] = None
-        self._backends: List[Any] = []
         self._row_widgets: List[tk.Widget] = []
-
-    def _build_backends(self) -> List[Any]:
-        """Build list of backends from config['backends']."""
-        backends = []
-        component_headless = self.config.get("headless")
-        cache_dir = self.app.config.data.get("cache", {}).get("directory")
-        for entry in self.config.get("backends") or []:
-            backend_type = entry.get("type")
-            if not backend_type:
-                continue
-            # Allow component-level headless to override
-            entry_config = dict(entry)
-            if "headless" not in entry_config and component_headless is not None:
-                entry_config["headless"] = component_headless
-            if "cache_dir" not in entry_config and cache_dir:
-                entry_config["cache_dir"] = cache_dir
-            be = get_backend(backend_type, entry_config, logger=self.logger)
-            if be:
-                backends.append(be)
-        return backends
-
-    def _schedule_next_daily_run(self) -> None:
-        """Schedule next run at schedule_time (e.g. 07:00) next day."""
-        schedule_time = self.config.get("schedule_time")
-        if not schedule_time:
-            return
-        try:
-            parts = str(schedule_time).strip().split(":")
-            hour = int(parts[0]) if parts else 0
-            minute = int(parts[1]) if len(parts) > 1 else 0
-        except (ValueError, IndexError):
-            hour, minute = 7, 0
-        now = datetime.now()
-        target = now.replace(hour=hour, minute=minute, second=0, microsecond=0)
-        if now >= target:
-            target += timedelta(days=1)
-        delay = int((target - now).total_seconds())
-        task_name = f"{self.name}_daily_fetch"
-        if task_name in self.app.task_manager.tasks:
-            self.app.task_manager.tasks[task_name].cancel()
-        self.app.task_manager.schedule_task(
-            task_name,
-            self._run_fetch_and_reschedule,
-            delay,
-            one_time=True,
+        self.task = UtilitiesBillDueTask(self.name, config)
+        self.task.ensure_scheduled()
+        self.app.task_manager.register_task(self.name, self.task.run)
+        self.app.task_manager.schedule_registered_task(
+            self.name, config, self.app.config.data
         )
-        self.logger.info(f"Utilities Bill Due: next daily fetch at {target.strftime('%H:%M')}")
-
-    def _run_fetch_and_reschedule(self) -> None:
-        """Run fetch then schedule next daily run (for schedule_time)."""
-        self._fetch_bills()
-        self._schedule_next_daily_run()
-
-    def _request_ui_update(self) -> None:
-        """Ask main thread to refresh the table (safe to call from background thread)."""
-        try:
-            self.app.task_manager.result_queue.put((self.name, None))
-        except Exception:
-            pass
 
     def handle_background_result(self, result: Any) -> None:
-        """Called on main thread when a fetch task finishes; redraw table."""
+        """Called on main thread when task finishes; redraw from DB."""
         self.update()
+
+    def get_api_data(self) -> Optional[Dict[str, Any]]:
+        """Expose latest bill data for the API (serializable dict)."""
+        try:
+            items = get_latest_bills(self.name)
+        except Exception:
+            return None
+        out = []
+        for item in items:
+            out.append({
+                "utility_type": item.utility_type,
+                "source": item.source,
+                "due_date": item.due_date.isoformat() if item.due_date else None,
+                "amount_due": item.amount_due,
+                "payment_due": item.payment_due,
+                "current_balance": item.current_balance,
+                "current_bill_billed_date": item.current_bill_billed_date.isoformat() if item.current_bill_billed_date else None,
+                "last_payment_amount": item.last_payment_amount,
+                "last_payment_date": item.last_payment_date.isoformat() if item.last_payment_date else None,
+                "raw_status": item.raw_status,
+                "usage": item.usage,
+            })
+        return {"bills": out}
 
     def initialize(self, parent: tk.Frame) -> None:
         super().initialize(parent)
@@ -144,59 +112,10 @@ class UtilitiesBillDueComponent(DashboardComponent):
         )
         self.error_label.pack(pady=padding["small"])
 
-        # Run initial fetch in background: pull from all backends, then update UI once
-        self.app.task_manager.schedule_task(
-            f"{self.name}_initial_fetch",
-            self._fetch_bills,
-            0,
-            one_time=True,
-        )
-
-        schedule_time = self.config.get("schedule_time")
-        update_interval = self.config.get("update_interval", 86400)
-        if schedule_time:
-            self._schedule_next_daily_run()
-        else:
-            self.app.task_manager.schedule_task(
-                f"{self.name}_update",
-                self._fetch_bills,
-                update_interval,
-                one_time=False,
-            )
-
-    def _fetch_bills(self) -> None:
-        """Run in background: fetch from all backends, then update UI on main thread."""
-        self.cached_error = None
-        self._backends = self._build_backends()
-        if not self._backends:
-            self.cached_error = "Add at least one backend in config (backends: type, utility_type, username_env, password_env)"
-            self._request_ui_update()
-            return
-
-        self.logger.info(f"Utilities Bill Due: starting fetch ({len(self._backends)} backend(s))")
-        all_items: List[BillDueInfo] = []
-        errors: List[str] = []
-        for backend in self._backends:
-            try:
-                items = backend.get_bill_due_info()
-                all_items.extend(items)
-            except Exception as e:
-                self.logger.exception(f"Utilities Bill Due: backend failed: {e}")
-                errors.append(str(e))
-
-        if errors:
-            self.cached_error = "; ".join(errors[:2])
-            if len(errors) > 2:
-                self.cached_error += "..."
-
-        # Order by due date (soonest first); items with no due_date go to the end
-        all_items.sort(key=lambda x: x.due_date or date(9999, 12, 31))
-        self.cached_data = all_items
-        self.logger.info(f"Utilities Bill Due: fetch done, {len(all_items)} item(s)")
-        self._request_ui_update()
+        self.update()
 
     def update(self) -> None:
-        """Redraw table from cached_data (main thread)."""
+        """Redraw table from DB via service (main thread)."""
         padding = self.get_responsive_padding()
         for w in self._row_widgets:
             try:
@@ -204,27 +123,26 @@ class UtilitiesBillDueComponent(DashboardComponent):
             except Exception:
                 pass
         self._row_widgets.clear()
+        self.error_label.config(text="")
 
-        if self.cached_error:
-            self.error_label.config(text=self.cached_error)
-        else:
-            self.error_label.config(text="")
+        try:
+            items: List[BillDueInfo] = get_latest_bills(self.name)
+        except Exception as e:
+            self.logger.exception(f"Failed to load utilities from DB: {e}")
+            self.error_label.config(text=str(e))
+            items = []
 
-        if not self.cached_data:
-            row = self.content_start_row
-            msg = "No bill data" if not self.cached_error else ""
+        if not items:
             lbl = self.create_label(
-                self.table_frame, text=msg or "Loading...", font_size="small"
+                self.table_frame, text="No bill data", font_size="small"
             )
-            lbl.grid(row=row, column=0, columnspan=5, padx=padding["small"], pady=4, sticky="w")
+            lbl.grid(row=self.content_start_row, column=0, columnspan=5, padx=padding["small"], pady=4, sticky="w")
             self._row_widgets.append(lbl)
             return
 
-        for i, item in enumerate(self.cached_data):
+        for i, item in enumerate(items):
             row = self.content_start_row + i
-            due_str = ""
-            if item.due_date:
-                due_str = item.due_date.strftime("%m/%d/%Y") if item.due_date else ""
+            due_str = item.due_date.strftime("%m/%d/%Y") if item.due_date else ""
             raw = (getattr(item, "raw_status", None) or "").strip()
             if raw and not raw.lower().startswith("balance="):
                 status = raw
@@ -250,12 +168,10 @@ class UtilitiesBillDueComponent(DashboardComponent):
                 self._row_widgets.append(lbl)
 
     def _manual_refresh(self) -> None:
-        task_name = f"{self.name}_manual_refresh"
-        if task_name in self.app.task_manager.tasks:
-            self.app.task_manager.tasks[task_name].cancel()
-        self.app.task_manager.schedule_task(
-            task_name,
-            self._fetch_bills,
-            0,
-            one_time=True,
-        )
+        """Run task once in background; UI refreshes via result_queue."""
+        def run():
+            self.app.task_manager.run_task_now(
+                self.name, self.config, self.app.config.data
+            )
+
+        threading.Thread(target=run, daemon=True).start()

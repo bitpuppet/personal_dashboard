@@ -1,28 +1,65 @@
+import threading
 import tkinter as tk
-from dashboard.core.component_base import DashboardComponent
-from typing import Dict, Any
-import asyncio
+from dashboard.core.component_base import DashboardComponent, _make_json_serializable
+from typing import Dict, Any, Optional
 from datetime import datetime, timedelta
 from .prayer_base import AladhanBackend
 from .audio_manager import AdhanManager
+from .service import get_latest_prayer_times
+from .task import PrayerTimesTask
 from tkinter import ttk  # For download button icon
+
+
+def _parse_prayer_times_from_data(data: Dict[str, Any]) -> Optional[Dict[str, datetime]]:
+    """Parse service data (prayer -> ISO str) to dict of prayer -> datetime."""
+    if not data:
+        return None
+    result = {}
+    for prayer, v in data.items():
+        if isinstance(v, datetime):
+            result[prayer] = v
+        elif isinstance(v, str):
+            try:
+                result[prayer] = datetime.fromisoformat(v.replace("Z", "+00:00"))
+                if result[prayer].tzinfo:
+                    result[prayer] = result[prayer].replace(tzinfo=None)
+            except (ValueError, TypeError):
+                pass
+    return result if result else None
+
 
 class PrayerTimesComponent(DashboardComponent):
     name = "Prayer Times"
-    
+
     def __init__(self, app, config: Dict[str, Any]):
         super().__init__(app, config)
         self.backend = self._create_backend()
         self.adhan_manager = AdhanManager(config)
-        self.enable_adhan = self.config.get('enable_adhan', True)
-        # Initialize playing state attributes
+        self.enable_adhan = self.config.get("enable_adhan", True)
         self.playing_prayer = None
         self.playing_labels = {}
         self.playing_icons = {}
         self.should_refresh_screen = True
-        
-        # Schedule daily cache refresh at 10 AM
-        self._schedule_daily_cache_refresh()
+
+        self.task = PrayerTimesTask(self.name, config)
+        self.task.ensure_scheduled()
+        self.app.task_manager.register_task(self.name, self.task.run)
+        self.app.task_manager.schedule_registered_task(
+            self.name, config, self.app.config.data
+        )
+        # Load initial display from DB if available
+        data = get_latest_prayer_times(self.name)
+        if data:
+            parsed = _parse_prayer_times_from_data(data)
+            if parsed:
+                self._latest_result = parsed
+
+    def get_api_data(self) -> Optional[Dict[str, Any]]:
+        """Expose prayer times for the API (JSON-serializable)."""
+        data = getattr(self, "_latest_result", None)
+        if data is not None:
+            return _make_json_serializable(data)
+        return get_latest_prayer_times(self.name)
         
     def _create_backend(self):
         """Create prayer times backend based on configuration"""
@@ -212,45 +249,19 @@ class PrayerTimesComponent(DashboardComponent):
         
         # Start countdown update
         self._update_countdown()
-        
-        # Initial update and schedule daily update
-        self.fetch_and_schedule_prayers()
-        
-        # Schedule next day's update at midnight
-        self._schedule_next_day_update()
-    
-    def _schedule_next_day_update(self) -> None:
-        """Schedule the next day's prayer times update at midnight"""
-        now = datetime.now()
-        midnight = (now.replace(hour=0, minute=0, second=0, microsecond=0) + 
-                   timedelta(days=1))
-        delay = (midnight - now).total_seconds()
-        self.logger.info(f"Scheduling next day's prayer times update at {midnight} in {delay} seconds")
-        self.app.task_manager.schedule_task(
-            f"{self.name}_daily_update",
-            self.fetch_and_schedule_prayers,
-            delay
-        )
-    
-    def fetch_and_schedule_prayers(self, force_fetch: bool = False) -> None:
-        """Fetch prayer times and schedule adhans"""
-        try:
-            self.logger.info("Fetching and scheduling prayer times")
-            prayer_times = self.backend.get_prayer_times(force_fetch)
-            
-            if prayer_times:
-                self.logger.info(f"Received prayer times: {prayer_times}")
-                for prayer, time in prayer_times.items():
-                    self.schedule_adhan(prayer, time)
-                    self.logger.info(f"Scheduled adhan for {prayer} at {time}")
-                
-                self._latest_result = prayer_times
-                self.frame.after(0, self.update)
-            else:
-                self.logger.error("Failed to fetch prayer times")
-                
-        except Exception as e:
-            self.logger.error(f"Error scheduling prayers: {e}", exc_info=True)
+
+        # If we have times from DB or will receive from task, schedule adhans
+        if self._latest_result:
+            self._apply_prayer_times(self._latest_result)
+
+    def _apply_prayer_times(self, prayer_times: Dict[str, datetime]) -> None:
+        """Apply prayer times: set _latest_result, schedule adhans, refresh display."""
+        self._latest_result = prayer_times
+        self.logger.info(f"Applying prayer times: {list(prayer_times.keys())}")
+        for prayer, time in prayer_times.items():
+            self.schedule_adhan(prayer, time)
+        if self.frame and self.frame.winfo_exists():
+            self.frame.after(0, self.update)
     
     def _schedule_adhans(self, prayer_times: Dict[str, datetime]) -> None:
         """Schedule only the next available prayer adhan"""
@@ -289,15 +300,17 @@ class PrayerTimesComponent(DashboardComponent):
             self.logger.info(f"Scheduled {next_prayer} adhan for {next_time}")
     
     def _schedule_next_after_adhan(self, prayer: str) -> None:
-        """Play adhan and schedule next prayer"""
-        # Play current adhan
-        self.logger.info(f"Playing adhan and Scheduling next after adhan for {prayer}")
-        if self.enable_adhan and hasattr(self, 'adhan_manager'):
-            if self.adhan_manager.play_adhan(prayer):
-                self._show_playing_state(prayer)
-        
-        # Schedule next prayer
-        self.fetch_and_schedule_prayers()
+        """Play adhan then trigger task run to refresh times and schedule next adhans."""
+        self.logger.info(f"Playing adhan and scheduling next after adhan for {prayer}")
+        if self.enable_adhan:
+            self.play_adhan(prayer)
+            self._show_playing_state(prayer)
+        # Run task to refresh times; result will come back via handle_background_result
+        def run():
+            self.app.task_manager.run_task_now(
+                self.name, self.config, self.app.config.data
+            )
+        threading.Thread(target=run, daemon=True).start()
     
     def update(self) -> None:
         """Update component display with latest result"""
@@ -320,11 +333,10 @@ class PrayerTimesComponent(DashboardComponent):
                     time_text = time.strftime("%I:%M %p")
                     self.prayer_labels[prayer].config(text=time_text)
             
-            # Check for adhan if enabled
+            # Sync UI with adhan playback state only; playback is triggered by timers in schedule_adhan
             if self.enable_adhan:
-                playing = self.adhan_manager.check_prayer_times(self._latest_result)
-                if playing:
-                    self._show_playing_state(playing)
+                if self.adhan_manager.is_playing and self.playing_prayer:
+                    self._show_playing_state(self.playing_prayer)
                 elif not self.adhan_manager.is_playing and self.playing_prayer:
                     self._clear_playing_state()
             
@@ -341,9 +353,11 @@ class PrayerTimesComponent(DashboardComponent):
             self.logger.error(error_msg)
     
     def handle_background_result(self, result: Any) -> None:
-        """Handle results from background task"""
-        self._latest_result = result
-        self.update()
+        """Handle results from background task (prayer_times dict from task)."""
+        if result and isinstance(result, dict):
+            self._apply_prayer_times(result)
+        else:
+            self.update()
     
     def _test_adhan(self, prayer: str) -> None:
         """Test adhan for specific prayer"""
@@ -426,9 +440,13 @@ class PrayerTimesComponent(DashboardComponent):
             total_seconds = time_diff.total_seconds()
             
             if total_seconds <= 0:
-                # Time to refresh prayer times
-                self.fetch_and_schedule_prayers()
-                self.frame.after(1000, self._update_countdown)  # Update again in a second
+                # Time to refresh prayer times via task
+                def run():
+                    self.app.task_manager.run_task_now(
+                        self.name, self.config, self.app.config.data
+                    )
+                threading.Thread(target=run, daemon=True).start()
+                self.frame.after(1000, self._update_countdown)
                 return
             
             hours = int(total_seconds // 3600)
@@ -464,84 +482,16 @@ class PrayerTimesComponent(DashboardComponent):
             self.frame.after(60000, self._update_countdown)
     
     def _manual_refresh(self) -> None:
-        """Handle manual refresh button click"""
-        try:
-            # Schedule the refresh task
-            task_name = f"{self.name}_manual_refresh"
-            
-            # Cancel any existing refresh task
-            if task_name in self.app.task_manager.tasks:
-                self.app.task_manager.tasks[task_name].cancel()
-            
-            # Show refreshing status
-            for prayer, label in self.prayer_labels.items():
+        """Run registered task now in background; result updates via handle_background_result."""
+        if hasattr(self, "prayer_labels"):
+            for label in self.prayer_labels.values():
                 label.config(text="Refreshing...")
-            
-            # Schedule the refresh task
-            self.app.task_manager.schedule_task(
-                task_name,
-                self._do_refresh,
-                0,  # Run immediately
-                one_time=True
+        def run():
+            self.app.task_manager.run_task_now(
+                self.name, self.config, self.app.config.data
             )
-            
-            self.logger.info("Manual prayer times refresh started")
-            
-        except Exception as e:
-            self.logger.error(f"Error scheduling prayer times refresh: {e}")
-    
-    def _do_refresh(self) -> None:
-        """Perform the actual refresh in background"""
-        try:
-            # Clear cache
-            self.cached_times = None
-            
-            # Fetch new times
-            times = self.prayer_backend.get_prayer_times(force_fetch=True)
-            if times:
-                self.cached_times = times
-            
-            # Update display on main thread
-            self.frame.after(0, self.update)
-            
-            self.logger.info("Manual prayer times refresh completed")
-            
-        except Exception as e:
-            self.logger.error(f"Error in prayer times refresh: {e}")
-            # Update display on error
-            self.frame.after(0, self.update)
-    
-    def _schedule_daily_cache_refresh(self) -> None:
-        """Schedule daily cache refresh at 10 AM"""
-        try:
-            now = datetime.now()
-            target = now.replace(hour=10, minute=0, second=0, microsecond=0)
-            
-            # If it's past 10 AM, schedule for tomorrow
-            if now >= target:
-                target += timedelta(days=1)
-            
-            delay = int((target - now).total_seconds())
-            
-            # Schedule the task
-            task_name = f"{self.name}_daily_cache_refresh"
-            
-            # Cancel existing task if any
-            if task_name in self.app.task_manager.tasks:
-                self.app.task_manager.tasks[task_name].cancel()
-            
-            # Schedule new task
-            self.app.task_manager.schedule_task(
-                task_name,
-                lambda: self.fetch_and_schedule_prayers(force_fetch=True),
-                delay,
-                one_time=False  # Make it recurring
-            )
-            
-            self.logger.info(f"Scheduled daily prayer times cache refresh for {target.strftime('%H:%M')}")
-            
-        except Exception as e:
-            self.logger.error(f"Error scheduling daily cache refresh: {e}")
+        threading.Thread(target=run, daemon=True).start()
+        self.logger.info("Manual prayer times refresh started")
 
     def schedule_adhan(self, prayer_name: str, prayer_time: datetime) -> None:
         """Schedule adhan for a prayer time"""
@@ -577,8 +527,6 @@ class PrayerTimesComponent(DashboardComponent):
             if not self.enable_adhan:
                 self.logger.info(f"Adhan is disabled, skipping {prayer_name}")
                 return
-                
-            self.logger.info(f"Playing adhan for {prayer_name}")
             
             # Get prayer-specific URL if configured, otherwise use default
             prayer_config = self.config.get('adhan', {}).get('prayer_specific', {}).get(prayer_name, {})

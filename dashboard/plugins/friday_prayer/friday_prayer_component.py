@@ -1,3 +1,4 @@
+import threading
 import tkinter as tk
 from tkinter import ttk
 from dashboard.core.component_base import DashboardComponent
@@ -5,21 +6,31 @@ from typing import Dict, Any, List
 from datetime import datetime, timedelta
 from .mosque_base import MosqueBase
 from .mosque_factory import create_mosque
-import time
+from .service import get_latest_friday_times
+from .task import FridayPrayerTask
+
 
 class FridayPrayerComponent(DashboardComponent):
     name = "Friday Prayer"
-    
+
     def __init__(self, app, config: Dict[str, Any]):
         super().__init__(app, config)
         self.mosques = self._initialize_mosques()
+        # Load from DB if available (list of {mosque_name, times} -> cached_times dict)
+        latest = get_latest_friday_times(self.name)
         self.cached_times = {}
+        if latest:
+            for item in latest:
+                if isinstance(item, dict) and "mosque_name" in item and "times" in item:
+                    self.cached_times[item["mosque_name"]] = item["times"]
         self.should_refresh_screen = True
-        
-        # Setup daily update if enabled
-        daily_update_config = self.config.get('daily_update', {})
-        if daily_update_config.get('enabled', True):
-            self._schedule_daily_update(daily_update_config.get('time', '10:00'))
+
+        self.task = FridayPrayerTask(self.name, config)
+        self.task.ensure_scheduled()
+        self.app.task_manager.register_task(self.name, self.task.run)
+        self.app.task_manager.schedule_registered_task(
+            self.name, config, self.app.config.data
+        )
     
     def _initialize_mosques(self) -> List[MosqueBase]:
         """Initialize mosque backends from config"""
@@ -146,64 +157,21 @@ class FridayPrayerComponent(DashboardComponent):
             separator.grid(row=current_row, column=0, columnspan=4, sticky='ew', pady=padding['small'])
             current_row += 1
     
-    def _schedule_daily_update(self, time_str: str) -> None:
-        """Schedule daily update at specified time"""
-        try:
-            # Parse update time
-            hour, minute = map(int, time_str.split(':'))
-            now = datetime.now()
-            
-            # Set target time for today
-            target = now.replace(hour=hour, minute=minute, second=0, microsecond=0)
-            
-            # If it's past target time, schedule for tomorrow
-            if now >= target:
-                target += timedelta(days=1)
-            
-            # Calculate delay in seconds
-            delay = int((target - now).total_seconds())
-            
-            # Schedule the task
-            task_name = f"{self.name}_daily_update"
-            
-            # Cancel existing task if any
-            if task_name in self.app.task_manager.tasks:
-                self.app.task_manager.tasks[task_name].cancel()
-            
-            # Schedule new task
-            self.app.task_manager.schedule_task(
-                task_name,
-                self._daily_update,
-                delay,
-                one_time=False  # Make it recurring
-            )
-            
-            self.logger.info(f"Scheduled daily Friday times update for {target.strftime('%H:%M')}")
-            
-        except Exception as e:
-            self.logger.error(f"Error scheduling daily update: {e}")
-    
-    def _daily_update(self) -> None:
-        """Perform daily update at 10 AM"""
-        try:
-            # Clear component cache
-            self.cached_times.clear()
-            
-            # Fetch new times with force_fetch
-            for mosque in self.mosques:
-                mosque_name = mosque.get_name()
-                # Pass force_fetch=True to get fresh content
-                times = mosque.get_friday_times(force_fetch=True)
-                if times:
-                    self.cached_times[mosque_name] = times
-            
-            # Update display
-            self.frame.after(0, self.update)  # Schedule update on main thread
+    def handle_background_result(self, result: Any) -> None:
+        """Called when task finishes; result is cached_times dict (mosque_name -> times)."""
+        if isinstance(result, dict):
+            self.cached_times = result
             self.should_refresh_screen = True
+            self.app.root.after(0, self.update)
 
-        except Exception as e:
-            self.logger.error(f"Error in daily update: {e}")
-    
+    def get_api_data(self) -> Dict[str, Any]:
+        """Return serializable data for API (list of mosque times)."""
+        out = [
+            {"mosque_name": name, "times": times}
+            for name, times in self.cached_times.items()
+        ]
+        return {"friday_times": out}
+
     def update(self) -> None:
         """Update prayer times display"""
         if not self.should_refresh_screen:
@@ -275,52 +243,16 @@ class FridayPrayerComponent(DashboardComponent):
         widget.bind('<Enter>', show_tooltip)
     
     def _manual_refresh(self) -> None:
-        """Handle manual refresh button click"""
+        """Trigger task run in background; UI updates via handle_background_result."""
         try:
-            # Schedule the refresh task
-            task_name = f"{self.name}_manual_refresh"
-            
-            # Cancel any existing refresh task
-            if task_name in self.app.task_manager.tasks:
-                self.app.task_manager.tasks[task_name].cancel()
-            
-            # Show refreshing status
             for mosque_name, labels in self.mosque_rows.items():
-                for key in ['juma1', 'juma2', 'juma3']:
+                for key in ["juma1", "juma2", "juma3"]:
                     labels[key].config(text="Refreshing...")
-            
-            # Schedule the refresh task
-            self.app.task_manager.schedule_task(
-                task_name,
-                self._do_refresh,
-                0,  # Run immediately
-                one_time=True
-            )
-            
-            self.logger.info("Manual refresh started")
-            
+            threading.Thread(
+                target=lambda: self.app.task_manager.run_task_now(
+                    self.name, self.config, self.app.config.data
+                ),
+                daemon=True,
+            ).start()
         except Exception as e:
-            self.logger.error(f"Error scheduling manual refresh: {e}")
-    
-    def _do_refresh(self) -> None:
-        """Perform the actual refresh in background"""
-        try:
-            # Clear component cache
-            self.cached_times.clear()
-            
-            # Fetch new times with force_fetch
-            for mosque in self.mosques:
-                mosque_name = mosque.get_name()
-                times = mosque.get_friday_times(force_fetch=True)
-                if times:
-                    self.cached_times[mosque_name] = times
-            
-            # Update display on main thread
-            self.frame.after(0, self.update)
-            
-            self.logger.info("Manual refresh completed")
-            
-        except Exception as e:
-            self.logger.error(f"Error in manual refresh: {e}")
-            # Update display on error
-            self.frame.after(0, self.update) 
+            self.logger.error(f"Error starting manual refresh: {e}") 

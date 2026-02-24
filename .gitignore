@@ -46,7 +46,7 @@ Thumbs.db
 # Project specific
 *.log
 .cache/
-~/
+~/*
 dashboard.log
 *.mp3
 *.mp4

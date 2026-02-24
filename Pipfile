@@ -17,6 +17,9 @@ google-auth-oauthlib = "*"
 google-auth-httplib2 = "*"
 playwright = "*"
 python-dateutil = "*"
+sqlalchemy = ">=2.0"
+fastapi = "*"
+uvicorn = "*"
 
 [dev-packages]
 pytest = "*"
