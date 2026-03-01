@@ -194,7 +194,7 @@ class CoServBackend(UtilityBillDueBackend):
         cache_dir = config.get("cache_dir")
         self.cache_helper = CacheHelper(cache_dir, "utilities_bill_due")
 
-    def get_bill_due_info(self) -> List[BillDueInfo]:
+    def get_bill_due_info(self, force_refresh: bool = False) -> List[BillDueInfo]:
         """Login and scrape SmartHub HOME dashboard; return one BillDueInfo (gas). Uses daily cache."""
         if not self._username or not self._password:
             self.logger.warning(
@@ -202,17 +202,18 @@ class CoServBackend(UtilityBillDueBackend):
             )
             return []
 
-        cached = self.cache_helper.get_cached_content(CACHE_KEY_COSERV)
-        if cached:
-            try:
-                data = json.loads(cached)
-                if isinstance(data, list) and data:
-                    results = [_bill_due_info_from_dict(d) for d in data if isinstance(d, dict)]
-                    if results:
-                        self.logger.info("CoServ: using cached bill due data for today")
-                        return results
-            except (json.JSONDecodeError, TypeError, KeyError) as e:
-                self.logger.debug(f"CoServ: cache parse failed, will scrape: {e}")
+        if not force_refresh:
+            cached = self.cache_helper.get_cached_content(CACHE_KEY_COSERV)
+            if cached:
+                try:
+                    data = json.loads(cached)
+                    if isinstance(data, list) and data:
+                        results = [_bill_due_info_from_dict(d) for d in data if isinstance(d, dict)]
+                        if results:
+                            self.logger.info("CoServ: using cached bill due data for today")
+                            return results
+                except (json.JSONDecodeError, TypeError, KeyError) as e:
+                    self.logger.debug(f"CoServ: cache parse failed, will scrape: {e}")
 
         if not HAS_PLAYWRIGHT:
             self.logger.error("Playwright not installed; run: pip install playwright && playwright install chromium")
@@ -236,17 +237,38 @@ class CoServBackend(UtilityBillDueBackend):
 
             try:
                 page.goto(COSERV_LOGIN_URL, wait_until="domcontentloaded")
-                page.wait_for_timeout(2000)
-
-                email_sel = '#mat-input-0, input[aria-label="Email"]'
-                password_sel = '#mat-input-1, input[aria-label="Password"], input[type="password"]'
+                # SPA: wait for app to render (Angular Material IDs like mat-input-0 change; use stable selectors)
+                page.wait_for_timeout(3000)
                 try:
-                    page.wait_for_selector(email_sel, timeout=10000)
-                    page.fill(email_sel, self._username)
-                    page.fill(password_sel, self._password)
-                    page.locator('button:has-text("Sign In"), button[type="submit"]').first.click()
+                    page.wait_for_selector(
+                        'input[type="email"], input[type="password"], input[aria-label*="mail" i], input[aria-label*="Email" i], input[placeholder*="mail" i], #mat-input-0',
+                        timeout=15000,
+                    )
                 except PlaywrightTimeout:
-                    self.logger.warning("CoServ: timeout waiting for login form")
+                    self.logger.warning("CoServ: timeout waiting for login form (SPA may still be loading)")
+                try:
+                    page.wait_for_timeout(500)
+                    # Fill email: label, aria-label, placeholder, then type/id fallbacks
+                    try:
+                        page.get_by_label(re.compile(r"Email|E-mail", re.I)).first.fill(self._username)
+                    except Exception:
+                        try:
+                            page.locator('input[aria-label*="mail" i], input[aria-label*="Email" i], input[placeholder*="mail" i]').first.fill(self._username)
+                        except Exception:
+                            page.locator('input[type="email"], #mat-input-0').first.fill(self._username)
+                    # Fill password
+                    try:
+                        page.get_by_label(re.compile(r"^Password$", re.I)).first.fill(self._password)
+                    except Exception:
+                        try:
+                            page.locator('input[aria-label="Password"], input[placeholder*="assword" i]').first.fill(self._password)
+                        except Exception:
+                            page.locator('input[type="password"], #mat-input-1').first.fill(self._password)
+                    # Submit
+                    try:
+                        page.get_by_role("button", name=re.compile(r"Sign\s*in|Log\s*in|Login", re.I)).first.click()
+                    except Exception:
+                        page.locator('button:has-text("Sign In"), button:has-text("Log in"), button:has-text("Login"), button[type="submit"]').first.click()
                 except Exception as e:
                     self.logger.warning(f"CoServ: login fill/click failed: {e}")
 

@@ -168,10 +168,10 @@ class UtilitiesBillDueComponent(DashboardComponent):
                 self._row_widgets.append(lbl)
 
     def _manual_refresh(self) -> None:
-        """Run task once in background; UI refreshes via result_queue."""
+        """Force run all backends (bypass cache) in background; UI refreshes via result_queue."""
         def run():
             self.app.task_manager.run_task_now(
-                self.name, self.config, self.app.config.data
+                self.name, self.config, self.app.config.data, force_refresh=True
             )
 
         threading.Thread(target=run, daemon=True).start()

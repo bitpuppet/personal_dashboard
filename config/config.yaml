@@ -84,7 +84,7 @@ components:
     row: 2  # Third row (below Hourly Weather, 4-Day Forecast)
     column: 0
     headless: false  # set to false to show browser when fetching (per-backend override also supported)
-    update_interval: 86400000 # 1 day in milliseconds
+    update_interval: 864000 # 1 day in milliseconds
     backends:
       - type: murphytx
         utility_type: water

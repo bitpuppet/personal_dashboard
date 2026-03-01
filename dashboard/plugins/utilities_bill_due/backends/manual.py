@@ -79,7 +79,7 @@ class ManualBackend(UtilityBillDueBackend):
         self.config = config or {}
         self.logger = logger or logging.getLogger(__name__)
 
-    def get_bill_due_info(self) -> List[BillDueInfo]:
+    def get_bill_due_info(self, force_refresh: bool = False) -> List[BillDueInfo]:
         entries = self.config.get("entries")
         if not isinstance(entries, list):
             if entries is not None:

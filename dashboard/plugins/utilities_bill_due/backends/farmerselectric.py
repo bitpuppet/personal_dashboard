@@ -202,11 +202,11 @@ class FarmersElectricBackend(UtilityBillDueBackend):
             p = os.environ.get(p, p)
         self._username = u
         self._password = p
-        self._headless = config.get("headless", True)
+        self._headless = config.get("headless", False)
         cache_dir = config.get("cache_dir")
         self.cache_helper = CacheHelper(cache_dir, "utilities_bill_due")
 
-    def get_bill_due_info(self) -> List[BillDueInfo]:
+    def get_bill_due_info(self, force_refresh: bool = False) -> List[BillDueInfo]:
         """Login and scrape SmartHub HOME dashboard; return one BillDueInfo (electric). Uses daily cache."""
         if not self._username or not self._password:
             self.logger.warning(
@@ -214,17 +214,18 @@ class FarmersElectricBackend(UtilityBillDueBackend):
             )
             return []
 
-        cached = self.cache_helper.get_cached_content(CACHE_KEY_FARMERSELECTRIC)
-        if cached:
-            try:
-                data = json.loads(cached)
-                if isinstance(data, list) and data:
-                    results = [_bill_due_info_from_dict(d) for d in data if isinstance(d, dict)]
-                    if results:
-                        self.logger.info("Farmers Electric: using cached bill due data for today")
-                        return results
-            except (json.JSONDecodeError, TypeError, KeyError) as e:
-                self.logger.debug(f"Farmers Electric: cache parse failed, will scrape: {e}")
+        if not force_refresh:
+            cached = self.cache_helper.get_cached_content(CACHE_KEY_FARMERSELECTRIC)
+            if cached:
+                try:
+                    data = json.loads(cached)
+                    if isinstance(data, list) and data:
+                        results = [_bill_due_info_from_dict(d) for d in data if isinstance(d, dict)]
+                        if results:
+                            self.logger.info("Farmers Electric: using cached bill due data for today")
+                            return results
+                except (json.JSONDecodeError, TypeError, KeyError) as e:
+                    self.logger.debug(f"Farmers Electric: cache parse failed, will scrape: {e}")
 
         if not HAS_PLAYWRIGHT:
             self.logger.error("Playwright not installed; run: pip install playwright && playwright install chromium")
