@@ -43,6 +43,7 @@ class UtilitiesBillDueTask(BaseTask):
         config_data: Optional[Dict[str, Any]] = None,
         **kwargs: Any,
     ) -> None:
+        force_refresh = kwargs.get("force_refresh", False)
         cache_dir = None
         if config_data:
             cache_dir = config_data.get("cache", {}).get("directory")
@@ -58,7 +59,7 @@ class UtilitiesBillDueTask(BaseTask):
         all_items: List[BillDueInfo] = []
         for backend in backends:
             try:
-                items = backend.get_bill_due_info()
+                items = backend.get_bill_due_info(force_refresh=force_refresh)
                 all_items.extend(items)
             except Exception as e:
                 self.logger.exception(f"Utilities Bill Due backend failed: {e}")

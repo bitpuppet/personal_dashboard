@@ -31,6 +31,6 @@ class UtilityBillDueBackend(ABC):
     """Abstract backend: return list of BillDueInfo from one provider."""
 
     @abstractmethod
-    def get_bill_due_info(self) -> List[BillDueInfo]:
-        """Fetch and return bill due info. Use BillDueInfo(...), not dicts."""
+    def get_bill_due_info(self, force_refresh: bool = False) -> List[BillDueInfo]:
+        """Fetch and return bill due info. Use BillDueInfo(...), not dicts. If force_refresh is True, bypass cache and run backends."""
         pass

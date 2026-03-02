@@ -157,7 +157,7 @@ class MurphyTXBackend(UtilityBillDueBackend):
         cache_dir = config.get("cache_dir")
         self.cache_helper = CacheHelper(cache_dir, "utilities_bill_due")
 
-    def get_bill_due_info(self) -> List[BillDueInfo]:
+    def get_bill_due_info(self, force_refresh: bool = False) -> List[BillDueInfo]:
         """Login and scrape dashboard; return one BillDueInfo (water). Uses daily cache to avoid scraping every time."""
         if not self._username or not self._password:
             self.logger.warning(
@@ -165,18 +165,19 @@ class MurphyTXBackend(UtilityBillDueBackend):
             )
             return []
 
-        # Return cached data if we have it for today
-        cached = self.cache_helper.get_cached_content(CACHE_KEY_MURPHYTX)
-        if cached:
-            try:
-                data = json.loads(cached)
-                if isinstance(data, list) and data:
-                    results = [_bill_due_info_from_dict(d) for d in data if isinstance(d, dict)]
-                    if results:
-                        self.logger.info("Murphy TX: using cached bill due data for today")
-                        return results
-            except (json.JSONDecodeError, TypeError, KeyError) as e:
-                self.logger.debug(f"Murphy TX: cache parse failed, will scrape: {e}")
+        # Return cached data if we have it for today (unless force_refresh)
+        if not force_refresh:
+            cached = self.cache_helper.get_cached_content(CACHE_KEY_MURPHYTX)
+            if cached:
+                try:
+                    data = json.loads(cached)
+                    if isinstance(data, list) and data:
+                        results = [_bill_due_info_from_dict(d) for d in data if isinstance(d, dict)]
+                        if results:
+                            self.logger.info("Murphy TX: using cached bill due data for today")
+                            return results
+                except (json.JSONDecodeError, TypeError, KeyError) as e:
+                    self.logger.debug(f"Murphy TX: cache parse failed, will scrape: {e}")
 
         if not HAS_PLAYWRIGHT:
             self.logger.error("Playwright not installed; run: pip install playwright && playwright install chromium")
@@ -207,7 +208,7 @@ class MurphyTXBackend(UtilityBillDueBackend):
 
                 # If not on dashboard (no "Your current balance"), we need to log in
                 if "Your current balance" not in body_text and "Welcome back" not in body_text:
-                    # Click "Proceed to Sign-in/Register" if present (gets us to the login form)
+                    # Click "Proceed to Sign-in/Register" if present (older flow)
                     if "Proceed to Sign-in/Register" in body_text:
                         self.logger.info("Murphy TX: clicking Proceed to Sign-in/Register")
                         try:
@@ -222,19 +223,30 @@ class MurphyTXBackend(UtilityBillDueBackend):
                             except Exception:
                                 pass
 
-                    # Now on login form: fill credentials and submit (from capture: login form has username/password inputs)
+                    # Login form: site may show "Email address" / "Password" and "Login" button (label-based is resilient)
                     self.logger.info("Murphy TX: on login page, submitting credentials")
                     try:
-                        username_sel = 'input[name="username"], input[type="email"], input[id*="user"], input[name="email"], input[type="text"]:not([type="hidden"])'
-                        password_sel = 'input[name="password"], input[type="password"], input[id*="pass"]'
-                        page.wait_for_selector(username_sel, timeout=12000)
-                        page.fill(username_sel, self._username)
-                        page.fill(password_sel, self._password)
-                        login_btn_sel = "body > div > div.container-fluid > div > div > form > div:nth-child(4) > button"
+                        # Wait for either email or username field (label text or input types)
+                        page.wait_for_selector(
+                            'input[type="email"], input[type="password"], input[name="username"], input[name="email"], [placeholder*="mail" i], [placeholder*="Email"]',
+                            timeout=12000,
+                        )
+                        page.wait_for_timeout(500)
+                        # Fill email: try label first (current site uses "Email address"), then fallbacks
                         try:
-                            page.locator(login_btn_sel).click()
+                            page.get_by_label(re.compile(r"Email\s*address|Email|Username", re.I)).first.fill(self._username)
                         except Exception:
-                            page.locator('button[type="submit"], input[type="submit"], button:has-text("Sign in"), button:has-text("Log in")').first.click()
+                            page.locator('input[type="email"], input[name="email"], input[name="username"], input[placeholder*="mail" i]').first.fill(self._username)
+                        # Fill password
+                        try:
+                            page.get_by_label(re.compile(r"^Password$", re.I)).first.fill(self._password)
+                        except Exception:
+                            page.locator('input[type="password"], input[name="password"]').first.fill(self._password)
+                        # Submit: button text is "Login" or "Sign in" / "Log in"
+                        try:
+                            page.get_by_role("button", name=re.compile(r"Log\s*in|Sign\s*in", re.I)).first.click()
+                        except Exception:
+                            page.locator('button[type="submit"], input[type="submit"], button:has-text("Login"), button:has-text("Sign in"), button:has-text("Log in")').first.click()
                         page.wait_for_load_state("domcontentloaded", timeout=30000)
                         page.wait_for_timeout(2000)
                     except PlaywrightTimeout:

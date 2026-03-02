@@ -124,17 +124,18 @@ class TaskManager:
         component_name: str,
         config: Dict[str, Any],
         config_data: Optional[Dict[str, Any]] = None,
+        **kwargs: Any,
     ) -> None:
-        """Run a registered task once immediately (e.g. manual refresh). Puts result on result_queue."""
+        """Run a registered task once immediately (e.g. manual refresh). Puts result on result_queue. kwargs are passed to the runnable."""
         runnable = self._registered_tasks.get(component_name)
         if not runnable:
             self.logger.warning(f"No task registered for component: {component_name}")
             return
         try:
             if config_data is not None:
-                runnable(config, self.result_queue, config_data=config_data)
+                runnable(config, self.result_queue, config_data=config_data, **kwargs)
             else:
-                runnable(config, self.result_queue)
+                runnable(config, self.result_queue, **kwargs)
         except Exception as e:
             self.logger.exception(f"Run task now {component_name} failed: {e}")
 
